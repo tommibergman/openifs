@@ -98,6 +98,8 @@ USE YOMSATSIM,    ONLY : NSATSIM
 USE SUXIOS,    ONLY : SUXIOS_INI_CTXT, SUXIOS_NAMCT0B, SUXIOS_CTXT, SUXIOS_NAMFPC
 #endif
 
+USE ECEARTH
+
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
@@ -154,6 +156,8 @@ CALL GSTATS(1934,0)
 !*    Setup model geometry
 WRITE(NULOUT,*) '------ Set up model geometry  ------',CLINE
 CALL SUGEOMETRY(YDGEOMETRY)
+
+CALL ECE_CONFIG(YDGEOMETRY)
 
 !     ------------------------------------------------------------------
 !*       4. "MODEL" PART SET-UP.

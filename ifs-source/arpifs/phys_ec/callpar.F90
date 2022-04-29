@@ -262,6 +262,7 @@ USE YOMPHYDER          , ONLY : STATE_TYPE, MASK_GFL_TYPE, DIMENSION_TYPE, AUX_T
 USE COUPLING
 USE YOE_PHYS_MWAVE , ONLY : N_PHYS_MWAVE
 USE TM5_CHEM_MODULE    , ONLY : NCHEM2AER
+USE ECEARTH
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
@@ -405,6 +406,11 @@ REAL(KIND=JPRB), ALLOCATABLE :: ZCHEM2AER(:,:,:)
 #include "set_ocean_fluxes.intfb.h"
 #include "surfws_layer.intfb.h"
 #include "diag_turb.intfb.h"
+
+#include "ece_nemo_set_ocean_fluxes.intfb.h"
+#include "ece_si3_get_ice_state.intfb.h"
+#include "ece_fesom_set_ocean_fluxes.intfb.h"
+#include "ece_fesim_get_ice_state.intfb.h"
 
 !     ------------------------------------------------------------------
 
@@ -1001,8 +1007,17 @@ ENDIF
 IF ( LEVDIF ) THEN
 
   IF (LNEMOLIMTHK) THEN
-    CALL ICESTATENEMO(YDMCC,KDIM%KSTGLO,KDIM%KIDIA,KDIM%KFDIA,&
-      & PTHKICE=SURFL%ZTHKICE(KDIM%KIDIA:KDIM%KFDIA),PSNTICE=SURFL%ZSNTICE(KDIM%KIDIA:KDIM%KFDIA))
+    IF (ECE_CPL_NEMO_LIM) THEN
+      CALL ECE_SI3_GET_ICE_STATE(KDIM%KSTGLO, KDIM%KIDIA, KDIM%KFDIA,                &
+      &                          ICE_THICKNESS=SURFL%ZTHKICE(KDIM%KIDIA:KDIM%KFDIA), &
+      &                          SNOW_THICKNESS=SURFL%ZSNTICE(KDIM%KIDIA:KDIM%KFDIA) )
+    ELSEIF (ECE_CPL_FESOM_FESIM) THEN
+      CALL ECE_FESIM_GET_ICE_STATE(KDIM%KSTGLO, KDIM%KIDIA, KDIM%KFDIA,              &
+      &                          SNOW_THICKNESS=SURFL%ZSNTICE(KDIM%KIDIA:KDIM%KFDIA) )
+    ELSE
+      CALL ICESTATENEMO(YDMCC,KDIM%KSTGLO,KDIM%KIDIA,KDIM%KFDIA,&
+        & PTHKICE=SURFL%ZTHKICE(KDIM%KIDIA:KDIM%KFDIA),PSNTICE=SURFL%ZSNTICE(KDIM%KIDIA:KDIM%KFDIA))
+    ENDIF
   ENDIF
 
   IF (LPHYLIN) THEN
@@ -1768,6 +1783,9 @@ ENDIF
 
 IF (LNEMOATMFLDS) CALL NEMOADDFLDS_LAYER(YDSURF,YDMCC,KDIM, SURFL, PSURF)
 IF (LNEMOLIMPUT.OR.CPL_NEMO_LIM) CALL SET_OCEAN_FLUXES(YDSURF,YDMCC,KDIM,SURFL,PSURF,FLUX)
+
+IF (ECE_CPL_NEMO_LIM) CALL ECE_NEMO_SET_OCEAN_FLUXES(YDSURF, KDIM, SURFL, PSURF, FLUX)
+IF (ECE_CPL_FESOM_FESIM) CALL ECE_FESOM_SET_OCEAN_FLUXES(YDGEOMETRY, YDSURF, KDIM, SURFL, PSURF, FLUX, PAUX)
 
 !     ------------------------------------------------------------------
 

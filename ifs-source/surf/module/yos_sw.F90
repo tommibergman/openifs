@@ -32,6 +32,9 @@ REAL(KIND=JPRB), ALLOCATABLE :: RALBICE_AN(:,:) ! for Arctic
 !                     7 - snow under high vegetation   (Warren, 1982)
 !                     8 - bare soil (Briegleb, Ramanathan, 1986)
 !     -----------------------------------------------------------------
+
+! Spectral weights for mapping the NEMO/SI3 broadband albedo to IFS albedo bands
+REAL(KIND=JPRB), ALLOCATABLE :: ICE_ALB_SPEC_WEIGHT(:)
 END TYPE TSW
 
 END MODULE YOS_SW

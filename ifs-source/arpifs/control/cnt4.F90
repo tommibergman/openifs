@@ -163,6 +163,10 @@ USE YOMJBPAR1DECV , ONLY : GET_VALUE_FROM_ECV
 USE YOMXIOS, ONLY: LOPT_SEND
 USE CXIOS, ONLY : IFS_XIOS_CALENDAR
 #endif
+
+USE ECEARTH
+USE CPLNG
+
 !      ----------------------------------------------------------------
 
 IMPLICIT NONE
@@ -1315,7 +1319,10 @@ DO
      & YDMODEL%YRML_PHY_RAD%YRERAD,YDDYNA,CPL_STAGE_OCE_SND)
 #endif
 
-  ! Optionally get fields from NEMO.
+  !*           Coupling to Ocean - EC-Earth style
+  IF (ECE_CPL_NEMO_LIM .OR. ECE_CPL_FESOM_FESIM) CALL CPLNG_EXCHANGE(ECE_CPL_STAGE_OCE_SND)
+
+  !*     3.21  Write animation file (ISP)
 
 #ifdef WITH_NEMO
   IF(LMCC04.AND.LNEMOCOUP.AND.LNEMOGRIBFLDS.AND.LOCEDELAY.AND.LLMLPP) THEN

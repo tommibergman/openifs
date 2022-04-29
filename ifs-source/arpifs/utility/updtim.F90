@@ -114,6 +114,8 @@ USE YOMRLX             , ONLY : NFRLXG, NFRLXU, LRLXG
 USE YOMSRLX            , ONLY : XPRLXG
 USE YOMDYNCORE         , ONLY : LAPE
 
+USE ECEARTH
+
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
@@ -184,6 +186,8 @@ LOGICAL :: LLUPDECAEC
 #include "fcttim.func.h"
 #include "fcttrm.func.h"
 #include "updcal.intfb.h"
+
+#include "ece_updclie.intfb.h"
 
 !     ------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('UPDTIM',0,ZHOOK_HANDLE)
@@ -873,9 +877,12 @@ IF(.NOT.LSCMEC) THEN
   ENDIF
 
 #ifdef WITH_OASIS
-
-  CALL UPDCLIE_OASIS(YDGEOMETRY,YDSURF,YDMCC,YDRIP,YDERAD,YDDYNA,PTSTEP)
-
+  IF (ECE_CPL_AMIP .OR. ECE_CPL_NEMO_LIM) THEN
+      ! EC-Earth-type update of climate variables
+      CALL ECE_UPDCLIE(YDGEOMETRY,YDSURF,PTSTEP)
+  ELSE
+    CALL UPDCLIE_OASIS(YDGEOMETRY,YDSURF,YDMCC,YDRIP,YDERAD,YDDYNA,PTSTEP)
+  ENDIF
 #else
 
   IF (LMCCEC.AND.LDCLUPD) THEN
@@ -910,18 +917,18 @@ IF(ISTASS < ITIME)THEN
     ENDIF
   ENDIF
 
-!        Updates climatology (SST) ECMWF style
-
-  IF(.NOT.LSCMEC) THEN
-!!!    IF (.NOT.(LMCC04.AND.(.NOT.LNEMO1WAY)) .AND. .NOT.LEOCML .AND. .NOT.LOCMLTKE) THEN
-!!! for the Ocean TKE, I have assume that it will not represent the seasonal change of the foundation SST
-!!! and therefore I decided to improse the seasonal change
-    IF (.NOT.(LMCC04.AND.(.NOT.LNEMO1WAY)) .AND. .NOT.LEOCML) THEN
-      IF (LMCCEC.AND.LDCLUPD) THEN
-        CALL UPDCLIE(YDGEOMETRY,YDDYNA,YDSURF,YDMODEL%YRML_AOC,YDERAD,YDEPHY,YDMODEL%YRML_GCONF,PTSTEP)
-      ENDIF
-    ENDIF
-  ENDIF
+!*ece*!!        Updates climatology (SST) ECMWF style
+!*ece*!
+!*ece*!  IF(.NOT.LSCMEC) THEN
+!*ece*!!!!    IF (.NOT.(LMCC04.AND.(.NOT.LNEMO1WAY)) .AND. .NOT.LEOCML .AND. .NOT.LOCMLTKE) THEN
+!*ece*!!!! for the Ocean TKE, I have assume that it will not represent the seasonal change of the foundation SST
+!*ece*!!!! and therefore I decided to improse the seasonal change
+!*ece*!    IF (.NOT.(LMCC04.AND.(.NOT.LNEMO1WAY)) .AND. .NOT.LEOCML) THEN
+!*ece*!      IF (LMCCEC.AND.LDCLUPD) THEN
+!*ece*!        CALL UPDCLIE(YDGEOMETRY,YDDYNA,YDSURF,YDMODEL%YRML_AOC,YDERAD,YDEPHY,YDMODEL%YRML_GCONF,PTSTEP)
+!*ece*!      ENDIF
+!*ece*!    ENDIF
+!*ece*!  ENDIF
 
 !        Updates ozone chemistry
 

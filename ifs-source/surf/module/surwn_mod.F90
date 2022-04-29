@@ -106,6 +106,7 @@ LLMODISALBEDO = (YDRAD%NALBEDOSCHEME > 0)
 
 IF(.NOT. ALLOCATED(YDSW%RALBICE_AR)) ALLOCATE(YDSW%RALBICE_AR(NMONTH,NTSW))
 IF(.NOT. ALLOCATED(YDSW%RALBICE_AN)) ALLOCATE(YDSW%RALBICE_AN(NMONTH,NTSW))
+IF(.NOT. ALLOCATED(YDSW%ICE_ALB_SPEC_WEIGHT)) ALLOCATE(YDSW%ICE_ALB_SPEC_WEIGHT(NTSW))
 ALLOCATE(ZALBICE2(NMONTH,2))
 ALLOCATE(ZALBICE4(NMONTH,4))
 ALLOCATE(ZALBICE6(NMONTH,6))
@@ -236,6 +237,20 @@ ELSE
 
   CALL ABORT_SURF('SURWN: WRONG NUMBER OF SW INTERVALS')
 
+ENDIF
+
+! Set up the spectral weights for sea ice albedo mapping
+! This can be used for coupling if one broad band albedo is provided
+IF (NSW==6) THEN
+    YDSW%ICE_ALB_SPEC_WEIGHT(:) = (/ 1.12114_JPRB, &
+                                  &  1.12463_JPRB, &
+                                  &  1.12561_JPRB, &
+                                  &  1.08982_JPRB, &
+                                  &  0.67650_JPRB, &
+                                  &  0.14922_JPRB /)
+ELSE
+    YDSW%ICE_ALB_SPEC_WEIGHT = HUGE(YDSW%ICE_ALB_SPEC_WEIGHT)
+    WRITE(*,*) 'SURWN: Warning: ICE_ALB_SPEC_WEIGHT can not be used, because NSW!=6'
 ENDIF
 
 DEALLOCATE(ZALBICE2)
