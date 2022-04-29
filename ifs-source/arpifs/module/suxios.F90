@@ -219,6 +219,11 @@ SUBROUTINE ifs_xios_set_axis(YDGEOMETRY)
 
   ! Definition of model levels axis
   ALLOCATE(zML(YDGEOMETRY%YRDIMV%NFLEVG))
+#if defined init_alloc_zero
+  zML = 0.0_JPRB
+#elif defined init_alloc_huge
+  zML = HUGE(zML)
+#endif
 
   j = 1.0
   DO i = 1, YDGEOMETRY%YRDIMV%NFLEVG
@@ -255,8 +260,27 @@ SUBROUTINE ifs_xios_set_domain(YDGEOMETRY)
 
   ALLOCATE(i_index(ni))
   ALLOCATE(lonvalue_1d(ni), latvalue_1d(ni))
+#if defined init_alloc_zero
+  lonvalue_1d = 0.0_JPRB
+  latvalue_1d = 0.0_JPRB
+#elif defined init_alloc_huge
+  lonvalue_1d = HUGE(lonvalue_1d)
+  latvalue_1d = HUGE(latvalue_1d)
+#endif
   ALLOCATE(bounds_lon_1d(nvertex, ni), bounds_lat_1d(nvertex, ni)) 
+#if defined init_alloc_zero
+  bounds_lon_1d = 0.0_JPRB
+  bounds_lat_1d = 0.0_JPRB
+#elif defined init_alloc_huge
+  bounds_lon_1d = HUGE(bounds_lon_1d)
+  bounds_lat_1d = HUGE(bounds_lat_1d)
+#endif
   ALLOCATE (zrgauslat(0:ndglg+1))
+#if defined init_alloc_zero
+  zrgauslat = 0.0_JPRB
+#elif defined init_alloc_huge
+  zrgauslat = HUGE(zrgauslat)
+#endif
 
   !
   !* Local domain data
@@ -420,8 +444,18 @@ SUBROUTINE suxios_namfpc(YDGEOMETRY)
     IF (LOPT_SEND) THEN
       IF (LSINGLE_PREC_SEND) THEN
         ALLOCATE(MLFLDBUF_SP(YDGEOMETRY%YRGEM%NGPTOT,n_glo_ml,NFP3DFS))
+#if defined init_alloc_zero
+        MLFLDBUF_SP = 0.0_JPRB
+#elif defined init_alloc_huge
+        MLFLDBUF_SP = HUGE(MLFLDBUF_SP)
+#endif
       ELSE
         ALLOCATE(MLFLDBUF_DP(YDGEOMETRY%YRGEM%NGPTOT,n_glo_ml,NFP3DFS))
+#if defined init_alloc_zero
+        MLFLDBUF_DP = 0.0_JPRB
+#elif defined init_alloc_huge
+        MLFLDBUF_DP = HUGE(MLFLDBUF_DP)
+#endif
       END IF
     END IF
     WRITE(NULOUT, '(''XIOSFPOS: NFP3DFS IS'',I4)') NFP3DFS
@@ -467,8 +501,18 @@ SUBROUTINE suxios_namfpc(YDGEOMETRY)
     IF (LOPT_SEND) THEN
       IF (LSINGLE_PREC_SEND) THEN
         ALLOCATE(PLFLDBUF_SP(YDGEOMETRY%YRGEM%NGPTOT,n_glo_pl,NFP3DFP))
+#if defined init_alloc_zero
+        PLFLDBUF_SP = 0.0_JPRB
+#elif defined init_alloc_huge
+        PLFLDBUF_SP = HUGE(PLFLDBUF_SP)
+#endif
       ELSE
         ALLOCATE(PLFLDBUF_DP(YDGEOMETRY%YRGEM%NGPTOT,n_glo_pl,NFP3DFP))
+#if defined init_alloc_zero
+        PLFLDBUF_DP = 0.0_JPRB
+#elif defined init_alloc_huge
+        PLFLDBUF_DP = HUGE(PLFLDBUF_SP)
+#endif
       END IF
     END IF
     WRITE(NULOUT, '(''XIOSFPOS: NFP3DFP IS'',I4)') NFP3DFP
@@ -514,8 +558,18 @@ SUBROUTINE suxios_namfpc(YDGEOMETRY)
     IF (LOPT_SEND) THEN
       IF (LSINGLE_PREC_SEND) THEN
         ALLOCATE(TLFLDBUF_SP(YDGEOMETRY%YRGEM%NGPTOT,n_glo_th,NFP3DFT))
+#if defined init_alloc_zero
+        TLFLDBUF_SP = 0.0_JPRB
+#elif defined init_alloc_huge
+        TLFLDBUF_SP = HUGE(TLFLDBUF_SP)
+#endif
       ELSE
         ALLOCATE(TLFLDBUF_DP(YDGEOMETRY%YRGEM%NGPTOT,n_glo_th,NFP3DFT))
+#if defined init_alloc_zero
+        TLFLDBUF_DP = 0.0_JPRB
+#elif defined init_alloc_huge
+        TLFLDBUF_DP = HUGE(TLFLDBUF_SP)
+#endif
       END IF
     END IF
     WRITE(NULOUT, '(''XIOSFPOS: NFP3DFT IS'',I4)') NFP3DFT
@@ -561,8 +615,18 @@ SUBROUTINE suxios_namfpc(YDGEOMETRY)
     IF (LOPT_SEND) THEN
       IF (LSINGLE_PREC_SEND) THEN
         ALLOCATE(VLFLDBUF_SP(YDGEOMETRY%YRGEM%NGPTOT,n_glo_pv,NFP3DFV))
+#if defined init_alloc_zero
+        VLFLDBUF_SP = 0.0_JPRB
+#elif defined init_alloc_huge
+        VLFLDBUF_SP = HUGE(VLFLDBUF_SP)
+#endif
       ELSE
         ALLOCATE(VLFLDBUF_DP(YDGEOMETRY%YRGEM%NGPTOT,n_glo_pv,NFP3DFV))
+#if defined init_alloc_zero
+        VLFLDBUF_DP = 0.0_JPRB
+#elif defined init_alloc_huge
+        VLFLDBUF_DP = HUGE(VLFLDBUF_SP)
+#endif
       END IF
     END IF
     WRITE(NULOUT, '(''XIOSFPOS: NFP3DFV IS'',I4)') NFP3DFV
@@ -682,18 +746,48 @@ SUBROUTINE suxios_namfpc(YDGEOMETRY)
     IF (LSINGLE_PREC_SEND) THEN
       IF (NFPPHY > 0 .and. NFP2DF > 0) THEN
         ALLOCATE(SFCFLDBUF_SP(YDGEOMETRY%YRGEM%NGPTOT,NFPPHY+1))
+#if defined init_alloc_zero
+        SFCFLDBUF_SP = 0.0_JPRB
+#elif defined init_alloc_huge
+        SFCFLDBUF_SP = HUGE(SFCFLDBUF_SP)
+#endif
       ELSE IF (NFPPHY > 0) THEN
         ALLOCATE(SFCFLDBUF_SP(YDGEOMETRY%YRGEM%NGPTOT,NFPPHY))
+#if defined init_alloc_zero
+        SFCFLDBUF_SP = 0.0_JPRB
+#elif defined init_alloc_huge
+        SFCFLDBUF_SP = HUGE(SFCFLDBUF_SP)
+#endif
       ELSE IF (NFP2DF > 0) THEN
         ALLOCATE(SFCFLDBUF_SP(YDGEOMETRY%YRGEM%NGPTOT,1))
+#if defined init_alloc_zero
+        SFCFLDBUF_SP = 0.0_JPRB
+#elif defined init_alloc_huge
+        SFCFLDBUF_SP = HUGE(SFCFLDBUF_SP)
+#endif
       END IF
     ELSE
       IF (NFPPHY > 0 .and. NFP2DF > 0) THEN
         ALLOCATE(SFCFLDBUF_DP(YDGEOMETRY%YRGEM%NGPTOT,NFPPHY+1))
+#if defined init_alloc_zero
+        SFCFLDBUF_DP = 0.0_JPRB
+#elif defined init_alloc_huge
+        SFCFLDBUF_DP = HUGE(SFCFLDBUF_DP)
+#endif
       ELSE IF (NFPPHY > 0) THEN
         ALLOCATE(SFCFLDBUF_DP(YDGEOMETRY%YRGEM%NGPTOT,NFPPHY))
+#if defined init_alloc_zero
+        SFCFLDBUF_DP = 0.0_JPRB
+#elif defined init_alloc_huge
+        SFCFLDBUF_DP = HUGE(SFCFLDBUF_DP)
+#endif
       ELSE IF (NFP2DF > 0) THEN
         ALLOCATE(SFCFLDBUF_DP(YDGEOMETRY%YRGEM%NGPTOT,1))
+#if defined init_alloc_zero
+        SFCFLDBUF_DP = 0.0_JPRB
+#elif defined init_alloc_huge
+        SFCFLDBUF_DP = HUGE(SFCFLDBUF_DP)
+#endif
       END IF
     END IF
   END IF
