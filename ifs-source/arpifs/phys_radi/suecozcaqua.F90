@@ -54,9 +54,9 @@ SUBROUTINE SUECOZCAQUA(YDEOZOC)
 !     --------------
 !-----------------------------------------------------------------------
 
-USE PARKIND1, ONLY : JPIM     ,JPRB
-USE YOMHOOK , ONLY : LHOOK,   DR_HOOK, JPHOOK
-USE YOEOZOC , ONLY : TEOZOC
+USE PARKIND1 , ONLY : JPIM, JPRB, JPIB
+USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
+USE YOEOZOC  , ONLY : TEOZOC
 
 IMPLICIT NONE
 

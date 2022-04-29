@@ -43,7 +43,7 @@ SUBROUTINE UPDRGAS(YDDYNA,YDERAD,YDERDI,YDRIP,PSOLINC)
 !       R. Hogan    2019-03-11  Read GHG/TSI timeseries from NetCDF file
 !     ------------------------------------------------------------------
 
-USE PARKIND1 , ONLY : JPIM     ,JPRB, JPRD
+USE PARKIND1 , ONLY : JPIM, JPRB, JPRD, JPIB
 USE YOMHOOK  , ONLY : LHOOK,   DR_HOOK, JPHOOK
 
 USE YOMCST   , ONLY : RDAY,  RI0, RMD, RMCO2, RMCH4, RMN2O, RMNO2, RMCFC11, RMCFC12, RMHCFC22, RMCCL4
@@ -65,6 +65,11 @@ TYPE(TERAD),     INTENT(IN)           :: YDERAD ! Configuration information
 TYPE(TERDI),     INTENT(INOUT)        :: YDERDI ! Output gas concentrations
 TYPE(TRIP),      INTENT(IN)           :: YDRIP  ! Time information
 REAL(KIND=JPRB), INTENT(IN), OPTIONAL :: PSOLINC ! Solar contant
+INTEGER(KIND=JPIM) :: IDY0, IDY, IMN0, IMN, INDSC &
+ &, IYR0, IYR, IYR1, IYR2, IRFY1, IRFY2, ISCEN
+INTEGER(KIND=JPIM) :: ISTADD, ITIME
+INTEGER(KIND=JPIB) :: IZT
+INTEGER(KIND=JPIM) :: ILMONTH(12)
 
 REAL(KIND=JPRB) :: ZCO2    , ZCH4    , ZN2O    , ZNO2    , ZCFC11    , ZCFC12,     ZHCFC22,     ZCCL4
 REAL(KIND=JPRB) :: ZCO2RMWG, ZCH4RMWG, ZN2ORMWG, ZNO2RMWG, ZCFC11RMWG, ZCFC12RMWG, ZHCFC22RMWG, ZCCL4RMWG
@@ -86,7 +91,7 @@ ASSOCIATE(NHINCSOL=>YDERAD%NHINCSOL, NSCEN=>YDERAD%NSCEN, &
 ! Get time in decimal years
 IF (YDECMIP%NCMIPFIXYR > 0) THEN
   ! Fix time at the centre of the requested year
-  ZYEAR = REAL(YDECMIP%NCMIPFIXYR,JPRB) + 0.5_JPRB
+  ZYEAR = REAL(YDECMIP%NCMIPFIXYR,JPRB) + 0.5_JPRB                                                                                    
 ELSE
   ! Get current time
   ZYEAR = GET_YEAR(YDRIP)

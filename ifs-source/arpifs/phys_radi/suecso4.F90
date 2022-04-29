@@ -44,19 +44,19 @@ SUBROUTINE SUECSO4 ( YD_RAERSO4, KCMIPFIXYR, KINDAT, KMINUT )
 !      C. Roberts 2017-05-30 Added NCMIPFIXYR.
 !-----------------------------------------------------------------------
 
-  USE PARKIND1           , ONLY : JPRD, JPIM     ,JPRB
+  USE PARKIND1           , ONLY : JPRD, JPIM, JPRB, JPIB
   USE YOMHOOK            , ONLY : LHOOK,   DR_HOOK, JPHOOK
   USE YOEAERC            , ONLY : NLDECSO4DIM, NFDECSO4DIM, CLISTSO4, FILESO4
   USE YOMLUN             , ONLY : NULOUT, FOPEN
   USE REGLATLON_FIELD_MIX, ONLY : REGLATLON_FIELD, CREATE_REGLATLON_FIELD, STATS_REGLATLON
-  USE EC_DATETIME_MOD,   ONLY : HOURDIFF, MININCR
+  USE EC_DATETIME_MOD    , ONLY : HOURDIFF, MININCR
 
   IMPLICIT NONE
 
   TYPE(REGLATLON_FIELD), INTENT(INOUT) :: YD_RAERSO4
   INTEGER(KIND=JPIM)   , INTENT(IN)    :: KCMIPFIXYR
   INTEGER(KIND=JPIM)   , INTENT(IN)    :: KINDAT  ! CCYYMMDD of start of forecast
-  INTEGER(KIND=JPIM)   , INTENT(IN)    :: KMINUT  ! forecast step in minuts
+  INTEGER(KIND=JPIB)   , INTENT(IN)    :: KMINUT  ! forecast step in minuts
 
 !     -----------------------------------------------------------------
 
@@ -96,7 +96,7 @@ SUBROUTINE SUECSO4 ( YD_RAERSO4, KCMIPFIXYR, KINDAT, KMINUT )
 !*         1.0    FIND ACTUAL DATE AND TIME (UP TO THE MINUTE)
 !                 --------------------------------------------
 
-  CALL MININCR (NCCAA(KINDAT),NMM(KINDAT),NDD(KINDAT),0  ,0  , KMINUT, &
+  CALL MININCR (NCCAA(KINDAT),NMM(KINDAT),NDD(KINDAT),0  ,0  , INT(KMINUT,JPIM), &
        &        IYR          ,IMM        ,IDD        ,IHH,IMI, IRET   )
 
 

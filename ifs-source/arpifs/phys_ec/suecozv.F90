@@ -58,7 +58,7 @@ SUBROUTINE SUECOZV(YDECMIP,KINDAT)
 !     O. Marsden          30/01/2018 Split the update out from the setup, new UPDECOZV routine
 !-----------------------------------------------------------------------
 
-USE PARKIND1 , ONLY : JPIM, JPRB, JPRD
+USE PARKIND1 , ONLY : JPIM, JPRB, JPRD, JPIB
 USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMLUN   , ONLY : NULOUT
 USE YOMCST   , ONLY : RPI, RDAY
@@ -67,6 +67,8 @@ USE YOECMIP  , ONLY : TECMIP,NLON1_CMIP5, NLAT1_CMIP5, NLV1_CMIP5, NMONTH1, &
 ! &                    CO3DATADIR, CO3DATAFIL, NRCP, NO3CMIP,NCMIPFIXYR
 
 IMPLICIT NONE
+
+!     -----------------------------------------------------------------
 
 !*       0.1   ARGUMENTS.
 !              ----------

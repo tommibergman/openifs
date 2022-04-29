@@ -131,12 +131,12 @@ SUBROUTINE ifs_xios_set_calendar
   USE YOMRIP0, ONLY : NINDAT, NSSSSS
   USE YOMLUN , ONLY : NULOUT, NULRCF
   USE YOMIOS , ONLY : CFRCF
+  USE YOMRES , ONLY : CSTEP
 
   TYPE(TRIP)         :: YDRIP
 
   INTEGER(KIND=JPIM) :: year, month, day, hours, minutes, seconds
   LOGICAL :: lexist
-  CHARACTER (LEN=8) :: CSTEP
   CHARACTER (LEN=20) :: time_origin_str, start_date_str, time_step_str, duration_from_origin_str
 
   ! Variables not necessary for XIOS, but for reading the NAMRCF namelist
@@ -177,7 +177,7 @@ SUBROUTINE ifs_xios_set_calendar
     READ(NULRCF,NAMRCF)
     CLOSE(NULRCF,STATUS='KEEP')
 
-    READ(CSTEP,'(I8)') nstep_from_origin
+    READ(CSTEP, *) nstep_from_origin
     
     duration_from_origin%second = REAL(nstep_from_origin,JPRB)*UTSTEP
     start_date = time_origin + duration_from_origin

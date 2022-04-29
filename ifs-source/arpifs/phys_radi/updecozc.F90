@@ -48,7 +48,7 @@ SUBROUTINE UPDECOZC(YDERAD,YDERDI,YDEOZOC,KINDAT,KMINUT)
 !     --------------
 !-----------------------------------------------------------------------
 
-USE PARKIND1  , ONLY : JPRD, JPIM, JPRB
+USE PARKIND1  , ONLY : JPRD, JPIM, JPRB, JPIB
 USE YOMHOOK   , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMCST    , ONLY : RPI
 USE YOERDI    , ONLY : TERDI
@@ -65,7 +65,7 @@ TYPE(TERAD)       ,INTENT(INOUT) :: YDERAD
 TYPE(TERDI)       ,INTENT(INOUT) :: YDERDI
 TYPE(TEOZOC)      ,INTENT(INOUT) :: YDEOZOC
 INTEGER(KIND=JPIM),INTENT(IN)    :: KINDAT 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KMINUT 
+INTEGER(KIND=JPIB),INTENT(IN)    :: KMINUT 
 INTEGER(KIND=JPIM) :: IULTMP
 
 !     -----------------------------------------------------------------

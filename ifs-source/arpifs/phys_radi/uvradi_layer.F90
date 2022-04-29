@@ -59,7 +59,7 @@ SUBROUTINE UVRADI_LAYER(YDSURF, &
 !      ABozzo Sep 2016: included switch to pass O3 from chemistry 
 !-----------------------------------------------------------------------
 
-USE PARKIND1           , ONLY : JPIM, JPRB
+USE PARKIND1           , ONLY : JPIM, JPRB, JPIB
 USE TYPE_MODEL         , ONLY : MODEL
 USE SURFACE_FIELDS_MIX , ONLY : TSURF
 USE VARIABLE_MODULE    , ONLY : VARIABLE_3D
@@ -91,7 +91,8 @@ TYPE(VARIABLE_3D)              , INTENT(INOUT) :: CHEM(:)
 ! REAL(KIND=JPRB)                , INTENT(INOUT) :: PGFL(KDIM%KLON,KDIM%KLEV,YDMODEL%YRML_GCONF%YGFL%NDIM)
 !-----------------------------------------------------------------------
 INTEGER(KIND=JPIM) :: JCAER,JCHEM,IO3_CHEM
-INTEGER(KIND=JPIM) :: ITIME, IZT, JL, JK
+INTEGER(KIND=JPIM) :: ITIME, JL, JK
+INTEGER(KIND=JPIB) :: IZT
 
 REAL(KIND=JPRB) :: ZRMUZ
 REAL(KIND=JPRB) :: ZUVC(KDIM%KLON,YDMODEL%YRML_PHY_RAD%YRERAD%NUV), ZUVT(KDIM%KLON,YDMODEL%YRML_PHY_RAD%YRERAD%NUV)

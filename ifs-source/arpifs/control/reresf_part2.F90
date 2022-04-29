@@ -211,7 +211,7 @@ CALL GSTATS(28,0)
 
 IF (.NOT. LNF) THEN
 
-  WRITE(NULOUT,'(A,I5.5)') ' READING RESTART FILES - STEP=',NSTAR2
+  WRITE(NULOUT,'(A,I9.9)') ' READING RESTART FILES - STEP=',NSTAR2
   IT=INDEX(CTIME,' ')-1
 
 !    ------------------------------------------------------------------
@@ -551,6 +551,7 @@ IF (.NOT. LNF) THEN
 !     Rename the DDH data file
     WRITE(CLSHELL,'(''mv '',A,'' '',A)') CLNMFI(1:9),CLNMFI
     CALL SYSTEM(CLSHELL)
+    
     CALL IGRIB_OPEN_FILE(IUNITIN,CLNMFI,'r')
     CALL IGRIB_OPEN_FILE(IUNIT,CLNMFI(1:9),'w')
     READ_LOOP:DO

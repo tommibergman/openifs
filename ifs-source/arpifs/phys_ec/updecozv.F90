@@ -52,7 +52,7 @@ SUBROUTINE UPDECOZV(YDERDI,YDECMIP,KINDAT,KMINUT)
 !     --------------
 !-----------------------------------------------------------------------
 
-USE PARKIND1 , ONLY : JPIM, JPRB, JPRD
+USE PARKIND1 , ONLY : JPIM, JPRB, JPRD, JPIB
 USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMLUN   , ONLY : NULOUT
 USE YOMCST   , ONLY : RPI, RDAY
@@ -67,7 +67,7 @@ IMPLICIT NONE
 TYPE(TERDI)       ,INTENT(IN)    :: YDERDI
 TYPE(TECMIP)      ,INTENT(INOUT) :: YDECMIP
 INTEGER(KIND=JPIM),INTENT(IN)    :: KINDAT 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KMINUT 
+INTEGER(KIND=JPIB),INTENT(IN)    :: KMINUT 
 !     -----------------------------------------------------------------
 
 !*       0.2   LOCAL ARRAYS.
@@ -130,8 +130,8 @@ IA0=NCCAA(KINDAT)
 IM0=NMM(KINDAT)
 IJ0=NDD(KINDAT)
 IH0=0
-IDD=KMINUT/1440_JPIM ! The number of days since KINDAT
-ISS=MODULO(KMINUT,1440_JPIM)*60_JPIM ! The number of seconds since the start of the current day
+IDD=KMINUT/1440_JPIB ! The number of days since KINDAT
+ISS=MODULO(KMINUT,1440_JPIB)*60_JPIB ! The number of seconds since the start of the current day
 CALL UPDCALSEC(IH0,IJ0,IM0,IA0,IDD,ISS, IHR,IMIN,ISC,IDY,IMN,IYR,ILMOIS,-1)
 
 ZXTIME=IDY-1+(60*(60*IHR+IMIN)+ISC)/RDAY - 0.5*ILMOIS(IMN) ! Number of days relative to center of the current month

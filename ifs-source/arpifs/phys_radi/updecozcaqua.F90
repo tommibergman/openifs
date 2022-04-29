@@ -53,7 +53,7 @@ SUBROUTINE UPDECOZCAQUA(YDERAD,YDERDI,YDEOZOC,KINDAT,KMINUT)
 !     --------------
 !-----------------------------------------------------------------------
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB,  JPRD
+USE PARKIND1  ,ONLY : JPIM     ,JPRB,  JPRD, JPIB
 USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 USE YOMCST   , ONLY : RPI
 USE YOERDI   , ONLY : TERDI
@@ -71,7 +71,7 @@ TYPE(TERAD)       ,INTENT(IN)    :: YDERAD
 TYPE(TERDI)       ,INTENT(IN)    :: YDERDI
 TYPE(TEOZOC)      ,INTENT(INOUT) :: YDEOZOC
 INTEGER(KIND=JPIM),INTENT(IN)    :: KINDAT 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KMINUT 
+INTEGER(KIND=JPIB),INTENT(IN)    :: KMINUT 
 
 !*       0.2   LOCAL ARRAYS.
 !              -------------

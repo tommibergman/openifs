@@ -72,7 +72,7 @@ SUBROUTINE SUARG (LDFAINIT)
 !      O. Marsden      Nov 2017 Removal of NUSTOP and UTSTEP from YOMARG, replaced by CSTOP and TSTEP in YOMRIP
 !     ------------------------------------------------------------------
 
-USE PARKIND1          , ONLY : JPIM     ,JPRB
+USE PARKIND1          , ONLY : JPIM     ,JPRB     ,JPIB
 USE YOMHOOK           , ONLY : LHOOK,   DR_HOOK, JPHOOK
 
 USE PARDIM            , ONLY : JPMXLE    ,JPMXGL
@@ -399,7 +399,7 @@ IF(NSUPERSEDE==1) THEN
       USTRET=1.0_JPRB
       UMUCEN=1.0_JPRB
       ULOCEN=0.0_JPRB
-      CALL MOD_INI(IUDATE,IUSSSS,ISTEP,NUCONF,-1,& 
+      CALL MOD_INI(IUDATE,IUSSSS,ISTEP,NUCONF,-1_JPIB,& 
        & NSTEPINI,-1.0_JPRB,NULOUT) 
       IF (LUELAM) THEN
         ! Needs remake to new LAM domain definition parameters
@@ -492,7 +492,7 @@ IF(NSUPERSEDE==1) THEN
         CALL CLOSE_IOSTREAM(YL_IOSTREAM)
        ENDIF
 
-      CALL MOD_INI(IUDATE,IUSSSS,ISTEP,NUCONF,-1,&  
+      CALL MOD_INI(IUDATE,IUSSSS,ISTEP,NUCONF,-1_JPIB,&  
        & NSTEPINI,-1.0_JPRB,NULOUT)  
       IF (.NOT.LUELAM) THEN
 

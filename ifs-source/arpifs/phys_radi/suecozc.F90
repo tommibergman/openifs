@@ -56,7 +56,7 @@ SUBROUTINE SUECOZC(YDEOZOC)
 !     O. Marsden Jan  2017  Moved non-setup code to a new UPDECOZC routine
 !-----------------------------------------------------------------------
 
-USE PARKIND1  , ONLY : JPRD, JPIM, JPRB
+USE PARKIND1  , ONLY : JPRD, JPIM, JPRB, JPIB
 USE YOMHOOK   , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOEOZOC   , ONLY : TEOZOC
 USE YOMLUN    , ONLY : RESERVE_LUN, FREE_LUN
