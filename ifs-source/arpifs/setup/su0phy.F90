@@ -149,6 +149,8 @@ USE YOMFPC     , ONLY : TNAMFPSCI
 USE SUXIOS   , ONLY : SUXIOS_PEXTRA_FIELDS
 #endif
 
+USE YOMORB   , ONLY : SUORB
+
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
@@ -1835,6 +1837,11 @@ READ(NULNAM,NAMRCOEF)
 !-------------------------------------------------
 
 CALL SUSCM(KULOUT)
+
+!-------------------------------------------------
+! Initialize orbital forcing
+!-------------------------------------------------
+CALL SUORB(KULOUT)
 
 !     ------------------------------------------------------------------
 

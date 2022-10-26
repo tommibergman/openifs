@@ -1,0 +1,6 @@
+NAMELIST /NAMORB/ &
+& LCORBMD, &
+& ORBMODE, ORBIY, ORBECCEN, ORBOBLIQ, &
+& ORBMVELP, ORBORLIQR, ORBLAMBM0, ORBMVELPP, &
+& ORBCALDAY, ORBCALDAYM, ORBCYEAR
+!  -----------------------------------------------------------
