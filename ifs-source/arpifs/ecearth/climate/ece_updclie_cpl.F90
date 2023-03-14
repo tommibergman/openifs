@@ -28,8 +28,7 @@ SUBROUTINE ECE_UPDCLIE_CPL(YDGEOMETRY, YDSURF, PTSTEP)
     REAL(KIND=JPRB),POINTER :: CPL_FLD_SST(:)
     REAL(KIND=JPRB),POINTER :: CPL_FLD_ICE_FRAC(:)
     REAL(KIND=JPRB),POINTER :: CPL_FLD_ICE_TEMP(:)
-    REAL(KIND=JPRB),POINTER :: CPL_FLD_ICE_ALB(:)
-    REAL(KIND=JPRB) :: ZRTFREEZSICE, ZRCIMIN
+    REAL(KIND=JPRB) :: ZRTFREEZSICE, ZRCIMIN, ZPRTMELTSICE
     REAL(KIND=JPRB) :: ZTS, ZCI, ZTI
 
 
@@ -50,7 +49,8 @@ SUBROUTINE ECE_UPDCLIE_CPL(YDGEOMETRY, YDSURF, PTSTEP)
     ! *** 0. Initialisation
     ! =========================================================================
 
-    CALL SURF_INQ(YREPHY%YSURF, PRTFREEZSICE=ZRTFREEZSICE, PRCIMIN=ZRCIMIN)
+    CALL SURF_INQ(YREPHY%YSURF, PRTFREEZSICE=ZRTFREEZSICE, PRCIMIN=ZRCIMIN, &
+    &             PRTMELTSICE=ZPRTMELTSICE )
 
     ! =========================================================================
     ! *** 1. Update coupling fields (from CPLNG coupler)
@@ -62,7 +62,6 @@ SUBROUTINE ECE_UPDCLIE_CPL(YDGEOMETRY, YDSURF, PTSTEP)
     CPL_FLD_ICE_FRAC => CPLNG_FLD(CPLNG_IDX('A_Ice_frac'))%D(:,1,1)
     IF (ECE_CPL_NEMO_LIM) THEN
       CPL_FLD_ICE_TEMP => CPLNG_FLD(CPLNG_IDX('A_Ice_temp'))%D(:,1,1)
-      CPL_FLD_ICE_ALB => CPLNG_FLD(CPLNG_IDX('A_Ice_albedo'))%D(:,1,1)
     ENDIF
 
     ! =========================================================================
@@ -83,12 +82,16 @@ SUBROUTINE ECE_UPDCLIE_CPL(YDGEOMETRY, YDSURF, PTSTEP)
           ! Sea-surface temperature
           SD_VF(JROF,YSD_VF%YSST%MP,IBL) = CPL_FLD_SST(JSTGLO+JROF-1)
 
-          ! Sea-ice fraction and temperature
+          ! Sea-ice fraction, temperature and albedo
           ZCI = CPL_FLD_ICE_FRAC(JSTGLO+JROF-1)
           IF (ZCI > ZRCIMIN) THEN
             SD_VF(JROF,YSD_VF%YCI%MP,IBL) = ZCI
             IF (ECE_CPL_NEMO_LIM) THEN
-              SP_SB(JROF,1,YSP_SB%YTL%MP,IBL) = CPL_FLD_ICE_TEMP(JSTGLO+JROF-1)
+              IF (ECE_CPL_NEMO_WEIGHTED_ICE) THEN
+                SP_SB(JROF,1,YSP_SB%YTL%MP,IBL) = MIN(ZPRTMELTSICE,CPL_FLD_ICE_TEMP(JSTGLO+JROF-1)/ZCI)
+              ELSE
+                SP_SB(JROF,1,YSP_SB%YTL%MP,IBL) = CPL_FLD_ICE_TEMP(JSTGLO+JROF-1)
+              ENDIF
             ENDIF
           ELSE
             SD_VF(JROF,YSD_VF%YCI%MP,IBL) = 0.
@@ -117,11 +120,6 @@ SUBROUTINE ECE_UPDCLIE_CPL(YDGEOMETRY, YDSURF, PTSTEP)
           & ( SD_VF(JROF,YSD_VF%YCI%MP,IBL)*SP_SB(JROF,1,YSP_SB%YTL%MP,IBL)**4 &
           & + (1.-SD_VF(JROF,YSD_VF%YCI%MP,IBL))*SD_VF(JROF,YSD_VF%YSST%MP,IBL)**4 &
           & )**.25
-
-          ! Sea-ice albedo
-          IF (ECE_CPL_NEMO_LIM) THEN
-            SD_VF(JROF,YSD_VF%YALBF%MP,IBL) = CPL_FLD_ICE_ALB(JSTGLO+JROF-1)
-          ENDIF
 
         ENDIF ! LSM <= 0.5_JPRB
       ENDDO ! JROF = 1,IEND
