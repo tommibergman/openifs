@@ -8,6 +8,7 @@ SUBROUTINE ECE_NEMO_SET_OCEAN_FLUXES(YDSURF, KDIM, SURFL, PSURF, FLUX)
     &                    FLUX_TYPE
     USE YOMCST, ONLY: RLVTT, RLSTT, RSIGMA, RCPD
     USE YOMHOOK, ONLY: LHOOK, DR_HOOK, JPHOOK
+    USE ECEARTH, ONLY: ECE_CPL_NEMO_CONSERVATIVE_HEATFLUX
 
     USE CPLNG
 
@@ -54,9 +55,14 @@ SUBROUTINE ECE_NEMO_SET_OCEAN_FLUXES(YDSURF, KDIM, SURFL, PSURF, FLUX)
     ! *** Radiative fluxes (solar, non-solar, dQ/dT)
     ! =========================================================================
 
-    CPLNG_FLD(CPLNG_IDX('A_Qs_mix'  ))%D(IG:IG+IE,1,1) = &
-                            SURFL%ZFRTI(IL:IL+IE,1)*SURFL%ZFRSOTI(IL:IL+IE,1) &
-    &                     + SURFL%ZFRTI(IL:IL+IE,2)*SURFL%ZFRSOTI(IL:IL+IE,2)
+    IF (ECE_CPL_NEMO_CONSERVATIVE_HEATFLUX) THEN
+      CPLNG_FLD(CPLNG_IDX('A_Qs_mix'  ))%D(IG:IG+IE,1,1) = &
+      &                     SURFL%ZFRTI(IL:IL+IE,1)*SURFL%ZFRSOTI(IL:IL+IE,1) &
+      &                   + SURFL%ZFRTI(IL:IL+IE,2)*SURFL%ZFRSOTI(IL:IL+IE,2)
+    ELSE
+      CPLNG_FLD(CPLNG_IDX('A_Qs_oce'  ))%D(IG:IG+IE,1,1) = &
+      &                                             SURFL%ZFRSOTI(IL:IL+IE,1)
+    ENDIF
 
     CPLNG_FLD(CPLNG_IDX('A_Qs_ice'  ))%D(IG:IG+IE,1,1) = &
     &                                               SURFL%ZFRSOTI(IL:IL+IE,2)
@@ -66,15 +72,22 @@ SUBROUTINE ECE_NEMO_SET_OCEAN_FLUXES(YDSURF, KDIM, SURFL, PSURF, FLUX)
     ZAHFLTI(IL:IL+IE,2) = PSURF%PEVAPTI(IL:IL+IE,2) * RLSTT
 
     CPLNG_FLD(CPLNG_IDX('A_Qns_ice'))%D(IG:IG+IE,1,1) = &
-    &                                               PSURF%PAHFSTI(IL:IL+IE,2) &
-    &                                             + ZAHFLTI(IL:IL+IE,2)       &
-    &                                             + SURFL%ZAHFTRTI(IL:IL+IE,2)
+    &                                             PSURF%PAHFSTI(IL:IL+IE,2) &
+    &                                           + ZAHFLTI(IL:IL+IE,2)       &
+    &                                           + SURFL%ZAHFTRTI(IL:IL+IE,2)
 
-    CPLNG_FLD(CPLNG_IDX('A_Qns_mix'))%D(IG:IG+IE,1,1) = &
-    &   SURFL%ZFRTI(IL:IL+IE,2) * CPLNG_FLD(CPLNG_IDX('A_Qns_ice'))%D(IG:IG+IE,1,1) &
-    & + SURFL%ZFRTI(IL:IL+IE,1) * ( PSURF%PAHFSTI(IL:IL+IE,1)    &
-    &                               + ZAHFLTI(IL:IL+IE,1)        &
-    &                               + SURFL%ZAHFTRTI(IL:IL+IE,1) )
+    IF (ECE_CPL_NEMO_CONSERVATIVE_HEATFLUX) THEN
+      CPLNG_FLD(CPLNG_IDX('A_Qns_mix'))%D(IG:IG+IE,1,1) = &
+      &   SURFL%ZFRTI(IL:IL+IE,2) * CPLNG_FLD(CPLNG_IDX('A_Qns_ice'))%D(IG:IG+IE,1,1) &
+      & + SURFL%ZFRTI(IL:IL+IE,1) * ( PSURF%PAHFSTI(IL:IL+IE,1)    &
+      &                               + ZAHFLTI(IL:IL+IE,1)        &
+      &                               + SURFL%ZAHFTRTI(IL:IL+IE,1) )
+    ELSE
+      CPLNG_FLD(CPLNG_IDX('A_Qns_oce'))%D(IG:IG+IE,1,1) = &
+      &                                           PSURF%PAHFSTI(IL:IL+IE,1) &
+      &                                         + ZAHFLTI(IL:IL+IE,1)       &
+      &                                         + SURFL%ZAHFTRTI(IL:IL+IE,1)
+    ENDIF
 
     ! Sensitivity of non-solar heat flux (only over ice)
     ZTS2(IL:IL+IE) = PSURF%PTSKTI(IL:IL+IE,2)**2
