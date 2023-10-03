@@ -163,7 +163,7 @@ SUBROUTINE RADINTG(YDGEOMETRY, YDMODEL,KLEV  , KMODE,&
 
 USE GEOMETRY_MOD , ONLY : GEOMETRY
 USE TYPE_MODEL   , ONLY : MODEL
-USE PARKIND1     , ONLY : JPIM, JPRB, JPRD
+USE PARKIND1     , ONLY : JPIM, JPRB, JPRD, JPIB
 USE YOMHOOK      , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMCST       , ONLY : RMD, RMO3, RPI
 USE YOMLUN       , ONLY : NULOUT, NULERR, RESERVE_LUN, FREE_LUN
@@ -172,6 +172,7 @@ USE YOMCT0       , ONLY : NUNDEFLD
 USE YOMCT3       , ONLY : NSTEP
 USE YOMMP0       , ONLY : NPROC, NPRTRV, MYSETV, MYPROC, LSLDEBUG
 USE YOESRTAER    , ONLY : RSRTAUA
+USE ECE_CMIP6    , ONLY : LCMIP6
 
 !   -------------------------------------------------------------------
 
@@ -430,6 +431,7 @@ INTEGER(KIND=JPIM) :: IAUX
 #include "radlswr.intfb.h"
 #include "radozc.intfb.h"
 #include "radozv.intfb.h"
+#include "ece_radozv_cmip6.intfb.h"
 #include "radghg.intfb.h"
 #include "rdscaw.intfb.h"
 #include "slcomm.intfb.h"
@@ -1332,10 +1334,17 @@ DO JSTGLO=1,RADGRID%NGPTOT,NRPROMA
 
         IF (NOZOCL == 1.AND..NOT.LEPO3RA.AND..NOT.LPHYLIN) THEN
           IF (YDRIP%YRECMIP%NO3CMIP /= 0) THEN
-            CALL RADOZV ( YDRIP%YRECMIP, I1, I2, NRPROMA, KLEV,&
-             & 1 , NRPROMA , I1-1,&
-             & ZRGP(1,IAPRS,IB) , ZRGP(1,IGELAM,IB) , ZRGP(1,IGEMU,IB),&
-             & ZQOZ   )
+            IF (LCMIP6) THEN
+              CALL ECE_RADOZV_CMIP6 ( I1, I2, NRPROMA, KLEV,&
+               & 1 , NRPROMA , I1-1,&
+               & ZRGP(1,IAPRS,IB) , ZRGP(1,IGELAM,IB) , ZRGP(1,IGEMU,IB),&
+               & ZQOZ   )
+            ELSE
+              CALL RADOZV ( YDRIP%YRECMIP, I1, I2, NRPROMA, KLEV,&
+               & 1 , NRPROMA , I1-1,&
+               & ZRGP(1,IAPRS,IB) , ZRGP(1,IGELAM,IB) , ZRGP(1,IGEMU,IB),&
+               & ZQOZ   )
+            ENDIF
           ELSE
             CALL RADOZC ( YDRIP%YREOZOC, I1, I2, NRPROMA, KLEV,&
              & 1 , NRPROMA , I1-1,&

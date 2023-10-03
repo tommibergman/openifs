@@ -56,6 +56,8 @@ USE YOERDI   , ONLY : TERDI
 USE YOMGHGTIMESERIES,ONLY   : YGHGTIMESERIES   ! GHG multi-annual timeseries
 USE YOMSOLARIRRADIANCE,ONLY : YSOLARIRRADIANCE ! TSI multi-annual timeseries
 
+USE ECE_CMIP6, ONLY : LCMIP6
+
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
@@ -76,8 +78,13 @@ REAL(KIND=JPRB) :: ZCO2RMWG, ZCH4RMWG, ZN2ORMWG, ZNO2RMWG, ZCFC11RMWG, ZCFC12RMW
 
 ! Year as a real number
 REAL(KIND=JPRB) :: ZYEAR
-
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+!     ------------------------------------------------------------------
+
+#include "updcal.intfb.h"
+#include "ece_cmip6_ghg.intfb.h"
+#include "ece_cmip6_solar.intfb.h"
+#include "fcttim.func.h"
 
 !     ------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('UPDRGAS',0,ZHOOK_HANDLE)
@@ -155,7 +162,42 @@ ELSE
   ENDIF
 ENDIF
 
-!     ------------------------------------------------------------------
+!------------------------------------------------------------------
+IF (LCMIP6) THEN
+  ! update GHG concentrations and solar forcing from CMIP6
+  ! skip rest of subroutine updrgas which means that
+  ! LGHGCMIP5, NSCEN, NRCP, NHINCSOL, etc are not used
+  CALL ECE_CMIP6_GHG(IYR,IMN)
+  CALL ECE_CMIP6_SOLAR(IYR,IMN)
+  WRITE(NULOUT,*)"UPDRGAS, RSOLINC,RCARDI,RCH4,RN2O,RCFC11,RCFC12,RNO2: "&
+                &        , RSOLINC,RCARDI,RCH4,RN2O,RCFC11,RCFC12,RNO2
+  IF (LHOOK) CALL DR_HOOK('UPDRGAS',1,ZHOOK_HANDLE)
+  RETURN
+ENDIF
+IF (LCMIP6) CALL ABOR1('UPDRGAS: you should not have come here if LCMIP6=T')
+!------------------------------------------------------------------
+
+
+!*         2.    CONCENTRATIONS
+!                --------------
+
+!*         2.1   CONCENTRATIONS AS DEFINED IN ERA-40
+!                -----------------------------------
+
+!ZAIRMWG = 28.970_JPRB
+!ZCO2MWG = 44.011_JPRB
+!ZCH4MWG = 16.043_JPRB
+!ZN2OMWG = 44.013_JPRB
+!ZNO2MWG = 46.006_JPRB
+!ZC11MWG = 137.3686_JPRB
+!ZC12MWG = 120.9140_JPRB
+
+!ZGASRMWG = ZGASMWG / ZAIRMWG
+
+ZCO2RMWG = 1.5191923_JPRB
+ZCH4RMWG = 0.5537798_JPRB
+ZN2ORMWG = 1.5192613_JPRB
+ZNO2RMWG = 1.5880566_JPRB
 
 END ASSOCIATE
 IF (LHOOK) CALL DR_HOOK('UPDRGAS',1,ZHOOK_HANDLE)

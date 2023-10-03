@@ -115,7 +115,8 @@ USE YOMSRLX            , ONLY : XPRLXG
 USE YOMDYNCORE         , ONLY : LAPE
 
 USE ECEARTH
-USE YOMORB, ONLY : LCORBMD, ORBCALDAY, ORBCALDAYM, SHR_ORB_UPD
+USE YOMORB ,   ONLY : LCORBMD, ORBCALDAY, ORBCALDAYM, SHR_ORB_UPD
+USE ECE_CMIP6, ONLY : LCMIP6
 
 !     ------------------------------------------------------------------
 
@@ -170,6 +171,9 @@ LOGICAL :: LLUPDECAEC
 #include "suecozo.intfb.h"
 #include "updecozv.intfb.h"
 #include "upd_ghgclim.intfb.h"
+#include "suecozv.intfb.h"
+#include "ece_suecozv_cmip6.intfb.h"
+#include "suecozcaqua.intfb.h"
 #include "updcli.intfb.h"
 #include "updcli_mse.intfb.h"
 #include "updclie.intfb.h"
@@ -734,7 +738,11 @@ IF (LEPHYS.OR.((LMPHYS.OR.LSIMPH).AND.LRAYFM)) THEN
       IF( LAPE ) THEN
         CALL UPDECOZCAQUA(YDERAD,YDERDI,YDRIP%YREOZOC,NINDAT,IMINUT)
       ELSEIF (YDRIP%YRECMIP%NO3CMIP /= 0) THEN
-        CALL UPDECOZV(YDERDI,YDRIP%YRECMIP,NINDAT,IMINUT)
+        IF (LCMIP6) THEN
+          CALL ECE_SUECOZV_CMIP6 ( NINDAT, IMINUT )
+        ELSE
+          CALL UPDECOZV(YDERDI,YDRIP%YRECMIP,NINDAT,IMINUT)
+        ENDIF
       ELSE
         !!CALL SUECOZC(YDERAD,YDERDI,YDRIP%YREOZOC,NINDAT,IMINUT)
         CALL UPDECOZC(YDERAD,YDERDI,YDRIP%YREOZOC,NINDAT,IMINUT)

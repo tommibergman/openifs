@@ -1,0 +1,77 @@
+MODULE ECE_CMIP6
+
+! =============================================================================
+! *** ECE_CMIP6 contains everything related to CMIP6:
+!   - paths
+!   - filenames
+!   - switches
+!   - namelist NAMECECMIP6
+! =============================================================================
+
+    USE PARKIND1,ONLY : JPIM
+
+    IMPLICIT NONE
+
+    PRIVATE
+
+    PUBLIC SETUP_ECE_CMIP6
+
+    PUBLIC LCMIP6
+    PUBLIC CMIP6DATADIR
+    PUBLIC SSPNAME
+    PUBLIC NCMIPFIXYR
+    PUBLIC NCMIPFIXYR_CH4
+    PUBLIC LA4xCO2
+    PUBLIC L1PCTCO2
+    PUBLIC LGHGMONTHLY
+
+    LOGICAL :: LCMIP6 = .FALSE.
+    CHARACTER(LEN=255) :: CMIP6DATADIR = 'CMIP6DATADIR NOT SET'
+    CHARACTER(LEN=24)  :: SSPNAME = 'SSPNAME NOT SET'
+    INTEGER(KIND=JPIM) :: NCMIPFIXYR = -1
+    INTEGER(KIND=JPIM) :: NCMIPFIXYR_CH4 = -1
+    LOGICAL :: LA4xCO2 = .FALSE.
+    LOGICAL :: L1PCTCO2 = .FALSE.
+    LOGICAL :: LGHGMONTHLY = .FALSE.
+
+    NAMELIST /NAMECECMIP6/ LCMIP6
+    NAMELIST /NAMECECMIP6/ CMIP6DATADIR
+    NAMELIST /NAMECECMIP6/ SSPNAME
+    NAMELIST /NAMECECMIP6/ NCMIPFIXYR
+    NAMELIST /NAMECECMIP6/ NCMIPFIXYR_CH4
+    NAMELIST /NAMECECMIP6/ LA4xCO2
+    NAMELIST /NAMECECMIP6/ L1PCTCO2
+    NAMELIST /NAMECECMIP6/ LGHGMONTHLY
+
+CONTAINS
+
+SUBROUTINE SETUP_ECE_CMIP6
+
+    USE YOMLUN, ONLY: NULOUT, NULNAM
+
+    ! Read EC-Earth CMIP6 namelist
+    CALL POSNAM(NULNAM,'NAMECECMIP6')
+    READ(NULNAM,NAMECECMIP6)
+
+    ! sanity checks
+
+    ! set NCMIPFIXYR_CH4 if not already set in namelist
+    IF (NCMIPFIXYR_CH4<=0) NCMIPFIXYR_CH4=NCMIPFIXYR
+
+    IF (LA4XCO2.AND.L1PCTCO2) &
+        &   CALL ABOR1('ECE_CMIP6: LA4XCO2 and L1PCTCO2 cannot both be true.')
+
+    IF ((LA4XCO2.OR.L1PCTCO2).AND.NCMIPFIXYR<=0) &
+        &   CALL ABOR1('ECE_CMIP6: set NCMIPFIXYR if LA4XCO2 or L1PCTCO2')
+
+    ! temporary check, remove after LGHGMONTHLY fully functional
+    IF (LGHGMONTHLY) THEN
+        WRITE(NULOUT, *) 'LGHGMONTHLY not fully implemented yet'
+        CALL ABOR1('ECE_CMIP6: ABOR1 CALLED (LGHGMONTHLY not fully implemented yet)')
+    ENDIF
+
+    ! print actual setting in logfile
+    WRITE(NULOUT, nml=NAMECECMIP6)
+END SUBROUTINE SETUP_ECE_CMIP6
+
+END MODULE ECE_CMIP6
