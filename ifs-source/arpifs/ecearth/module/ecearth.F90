@@ -158,6 +158,7 @@ SUBROUTINE ECE_CONFIG_COUPLING(YDGEOMETRY)
 
         ! Fields sent from atmosphere to ocean via runoff-mapper
         CALL CPLNG_ADD_FLD('A_Runoff',        CPLNG_FLD_TYPE_GRIDPOINT,OASIS_OUT,ECE_CPL_STAGE_OCE_SND)
+        CALL CPLNG_ADD_FLD('A_Calving',       CPLNG_FLD_TYPE_GRIDPOINT,OASIS_OUT,ECE_CPL_STAGE_OCE_SND)
 
         ! Fields received by the atmosphere from the ocean
         CALL CPLNG_ADD_FLD('A_Ice_temp',      CPLNG_FLD_TYPE_GRIDPOINT,OASIS_IN, ECE_CPL_STAGE_OCE_RCV)

@@ -6,6 +6,9 @@
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction
 MODULE SURFTSTP_CTL_MOD
+
+USE ECEARTH, ONLY: ECE_CPL_AMIP
+
 CONTAINS
 SUBROUTINE SURFTSTP_CTL(KIDIA , KFDIA , KLON  , KLEVS , KTILES,&
  & KLEVSN , KLEVO , KLEVI , KSTART , KSTEP,&
@@ -682,6 +685,11 @@ DO JL=KIDIA,KFDIA
         ZRSN(JL,KLMAX)=RHOMAXSN
         ZROFS(JL) = MAX(0._JPRB,ZSN(JL,KLMAX)-SUM(PSNM1M(JL,:)))*ZTSPHY
         ZSN(JL,KLMAX)=10000.0_JPRB
+      ENDIF
+       ! EC-EARTH: CAP ZSN IN ATMOS-ONLY EXPERIMENTS, FOR CPLD EXPERIMENTS
+       !           THIS IS TAKEN CARE OF IN ece_nemo_set_ocean_fluxes.F90
+      IF (ECE_CPL_AMIP) THEN 
+        ZSN(JL,KLMAX) = 10000.0_JPRB !reset to glaciers value of 10000 kg/m2 (SWE=10m)
       ENDIF
     ENDIF
   ENDIF

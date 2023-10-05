@@ -1,6 +1,7 @@
 SUBROUTINE ECE_NEMO_SET_OCEAN_FLUXES(YDSURF, KDIM, SURFL, PSURF, FLUX)
 
     USE PARKIND1, ONLY: JPRB, JPIM
+    USE YOMPHY2, ONLY : YRPHY2
     USE SURFACE_FIELDS_MIX, ONLY: TSURF
     USE YOMPHYDER, ONLY: DIMENSION_TYPE, &
     &                    SURF_AND_MORE_LOCAL_TYPE, &
@@ -28,11 +29,12 @@ SUBROUTINE ECE_NEMO_SET_OCEAN_FLUXES(YDSURF, KDIM, SURFL, PSURF, FLUX)
     REAL(KIND=JPRB)    :: ZTS2(KDIM%KLON)
     REAL(KIND=JPRB)    :: ZTS3(KDIM%KLON)
     REAL(KIND=JPRB)    :: ZU10(KDIM%KLON)
+    REAL(KIND=JPRB)    :: ZCALV(KDIM%KLON)
 
 
     IF (LHOOK) CALL DR_HOOK('ECE_NEMO_SET_OCEAN_FLUXES',0,ZHOOK_HANDLE)
 
-    ASSOCIATE(YSD_VD => YDSURF%YSD_VD)
+    ASSOCIATE(YSD_VD => YDSURF%YSD_VD, YSP_SG=>YDSURF%YSP_SG, TSPHY=>YRPHY2%TSPHY)
 
     ! =========================================================================
     ! *** Pre-compute indices
@@ -110,6 +112,15 @@ SUBROUTINE ECE_NEMO_SET_OCEAN_FLUXES(YDSURF, KDIM, SURFL, PSURF, FLUX)
 
     CPLNG_FLD(CPLNG_IDX('A_Runoff'))%D(IG:IG+IE,1,1) = &
     &                             FLUX%PFWRO1(IL:IL+IE) + FLUX%PFWROD(IL:IL+IE)
+
+    ! remove excess snow and send it into the ocean as ice ("calving")
+    ! the threshold 10000 kg/m2 is "loosely" defined at l.638
+    ! in surf/module/surftstp_ctl_mod.F90
+    ! transform excess snow to a mass flux
+    ZCALV(IL:IL+IE)=MAX(0._JPRB,PSURF%PSP_SG(IL:IL+IE,YSP_SG%YF%MP)-10000._JPRB)/TSPHY
+    CPLNG_FLD(CPLNG_IDX('A_Calving'))%D(IG:IG+IE,1,1) = ZCALV(IL:IL+IE)
+    ! remove the same amount from the snow tendency to keep the mass balance
+    PSURF%PSNSE1(IL:IL+IE) = PSURF%PSNSE1(IL:IL+IE)-ZCALV(IL:IL+IE)
 
     CPLNG_FLD(CPLNG_IDX('A_Precip_liquid'))%D(IG:IG+IE,1,1) = &
     &         FLUX%PFPLCL(IL:IL+IE,KDIM%KLEV) + FLUX%PFPLSL(IL:IL+IE,KDIM%KLEV)
