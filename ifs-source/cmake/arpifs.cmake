@@ -74,13 +74,33 @@ list(APPEND arpifs_private_includes satrad/interface openifs/emos)
 list(APPEND arpifs_public_libs wam.${PREC})
 
 # Add the openifs "smart" dummies, which are built in arpifs, rather than 
-  # dummy to ensure consistent generation of fortran interface blocks, when 
-  # compared to the full build. 
-  ecbuild_list_add_pattern(LIST arpifs.${PREC}_src GLOB
-    openifs/dummy/*
-  )
+# dummy to ensure consistent generation of fortran interface blocks, when 
+# compared to the full build. 
+ecbuild_list_add_pattern(LIST arpifs.${PREC}_src GLOB
+  openifs/dummy/*
+  openifs/src/openifs.F90
+  openifs/dummy_xios/*
+)
 
-  list(APPEND arpifs_public_libs openifs_intfb) 
+if ( NOT ENABLE_OIFS_XIOS )
+  ecbuild_list_exclude_pattern(LIST arpifs.${PREC}_src REGEX
+    arpifs/module/yomxios.F90
+    arpifs/module/cxios.F90
+    arpifs/module/suxios.F90
+  )
+endif ()
+
+
+# if ( ENABLE_OIFS_CPLNG )
+#   ecbuild_list_add_pattern(LIST arpifs.${PREC}_src GLOB
+#     openifs/cplng/*  
+#   )
+# else ()
+  # ecbuild_list_add_pattern(LIST arpifs.${PREC}_src GLOB
+  #   openifs/dummy_cplng/*  
+# endif ()
+
+list(APPEND arpifs_public_libs openifs_intfb) 
 
 # Intel 18.* has problems compiling arpifs/oops/fields_io_mod, which is only used by OOPS.
 # OOPS not being tested with Intel 18, we exclude the file for this compiler major version

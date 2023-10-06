@@ -144,6 +144,14 @@ options :
         help  : Enable SCM compilation
         cmake : ENABLE_SCMEC=ON
 
+    - with-oifs-xios :
+        help  : Enable XIOS compilation in OpenIFS
+        cmake : ENABLE_OIFS_XIOS=ON
+
+    - with-oifs-cplng :
+        help  : Enable coupling compilation in OpenIFS
+        cmake : ENABLE_OIFS_CPLNG=ON 
+
     - with-magics :
         help  : Enable Magics compilation
         cmake : BUILD_magics=ON

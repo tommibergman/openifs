@@ -96,7 +96,7 @@ USE PARKIND1     , ONLY : JPIM, JPRB
 USE YOMHOOK      , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMCT0       , ONLY : NCONF, LR2D, LELAM, &
  &                        LCANARI, LSCREEN, LIFSTRAJ, LIFSMIN, LECMWF,&
- &                        NOPT_MEMORY
+ &                        NOPT_MEMORY, LXIOS
 USE YOMMP0       , ONLY : NPROC, LSLDEBUG
 USE YOMCT3       , ONLY : NSTEP
 USE YOMSMOS      , ONLY : LESMOS_ACTIVE, LESMAP_ACTIVE, LESMOS_SEKF, NPOL_MAX, &
@@ -112,6 +112,10 @@ USE DDH_MIX      , ONLY : TYP_DDH, STOREDDH, NTOTFIELD, NTOTVAR, NTOTSURF, &
 &                         NTOTSVAR, NTOTSVFS
 #ifdef WITH_ATLAS
 USE ATLAS_MODULE , ONLY : ATLAS_TRACE
+#endif
+#ifdef WITH_XIOS
+USE YOMXIOS  , ONLY : LOPT_SEND
+USE CXIOS    , ONLY : IFS_XIOS_CALENDAR, XIOS_FLUSH_BUFFERS
 #endif
 !     ------------------------------------------------------------------
 
@@ -750,6 +754,18 @@ IF (.NOT.LR2D) THEN
       ENDIF
     ENDIF
   ENDIF
+
+#ifdef WITH_XIOS
+!!! 43r3 this call is before ECMWF physics, so done the same. 
+!!! the call structure has changed so is this still correct?
+  ! If using the optimized send to XIOS, update the calendar and flush delayed I/O buffers
+  IF (LXIOS) THEN
+    IF (LOPT_SEND) THEN
+      CALL IFS_XIOS_CALENDAR
+      CALL XIOS_FLUSH_BUFFERS
+    END IF
+  END IF
+#endif
 
   !   ------------------------------------------------------------------
   !*     6.    ECMWF Physics

@@ -28,6 +28,9 @@ USE MPL_MODULE, ONLY : LMPLUSERCOMM, MPLUSERCOMM, LTHSAFEMPI, LINITMPI_VIA_MPL
 #if defined(WITH_OASIS) || defined(WITH_NEMO)
 USE COUPLING
 #endif
+#ifdef WITH_XIOS
+USE SUXIOS     ,ONLY : SUXIOS_INI, SUXIOS_FIN
+#endif
 
 IMPLICIT NONE
 
@@ -77,13 +80,12 @@ LLSTARTUPCOST = .FALSE. ! If true, then display MPI startup cost (only ever to h
 ZMPI_INIT(:) = 0
 
 ! XIOS and MPI initialization
-! #ifdef 1
-! #ifdef WITH_XIOS
-! CALL SUXIOS_INI
+#ifdef WITH_XIOS
+CALL SUXIOS_INI
 ! #elif WITH_CPLNG
 ! CALL CPLNG_INIT
 ! #endif
-! #endif
+#endif
 
 ! OASIS3 or OASIS4 interface must be initialized before any DR_HOOK call.
 
@@ -272,14 +274,13 @@ CALL MPL_END(KERROR=IER) ! Does not fail
 IF (LLNEMOIO) CALL ENDNEMOIO()
 #endif
 
-!#ifdef 1
 ! XIOS and MPI finalization
-! #ifdef WITH_XIOS
-! CALL SUXIOS_FIN
+#ifdef WITH_XIOS
+CALL SUXIOS_FIN
 ! #elif WITH_CPLNG
 ! CALL CPLNG_FINALIZE
 ! #endif
-!#endif
+#endif
 
 ENDIF
 

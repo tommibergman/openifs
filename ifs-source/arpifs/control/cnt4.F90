@@ -112,7 +112,7 @@ USE YOMCT0        , ONLY : NCONF, &
  &                         NGDITS   ,NSDITS   ,NDHFGTS  ,NDHFZTS  ,NDHFDTS  ,NDHPTS, NFRMASSCON,LFDBOP   ,&
  &                         NSFXHISTS,NPOSTS   ,NPOSTSMIN,LSMSSIG  , LIFSMIN  ,&
  &                         NSFXHISTSMIN, LOBSC1   ,LOBSREF  ,LELAM    ,LNF      ,LR2D     ,&
- &                         LOBS,NFRCORM,L_OOPS,LCONSERV,LCORWAT
+ &                         LOBS,NFRCORM,L_OOPS,LCONSERV,LCORWAT, LXIOS
 USE YOMCT1        , ONLY : N1POS    ,N1HIS    ,N1GDI    ,N1SDI    ,N1MASSCON, N1RES    ,N1SFXHIS
 USE YOMCT2        , ONLY : NSTAR2   ,NSTOP2
 USE YOMCT3        , ONLY : NSTEP
@@ -159,6 +159,10 @@ USE GMV_SUBS_MOD
 USE CONSERVE
 USE YOMJBECV      , ONLY : YRECV5
 USE YOMJBPAR1DECV , ONLY : GET_VALUE_FROM_ECV
+#ifdef WITH_XIOS
+USE YOMXIOS, ONLY: LOPT_SEND
+USE CXIOS, ONLY : IFS_XIOS_CALENDAR
+#endif
 !      ----------------------------------------------------------------
 
 IMPLICIT NONE
@@ -793,6 +797,13 @@ DO
   ! 3.8.0.2 Prepare for Jk
 
   IF (LEJK) CALL EVARJKINI(YDGEOMETRY,YDGFL,YDGFL5,YDDYN,YDMODEL%YRML_GCONF,YDMODEL%YRML_LBC,YDFIELDS%YRSPEC)
+
+#ifdef WITH_XIOS
+  !*    Update calendar of XIOS
+  IF (LXIOS) THEN
+    IF (.NOT.LOPT_SEND) CALL IFS_XIOS_CALENDAR
+  END IF
+#endif
 
   !*     3.8.1  Prepare Full post-processing
 

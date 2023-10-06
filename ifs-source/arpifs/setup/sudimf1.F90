@@ -54,8 +54,11 @@ USE TYPE_MODEL, ONLY : MODEL
 USE PARKIND1  , ONLY : JPIM, JPRB
 USE YOMHOOK   , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMLUN    , ONLY : NULOUT, NULNAM, NULERR
-USE YOMCT0    , ONLY : LR3D, LR2D, NCONF, LECMWF, LELAM,L_OOPS
+USE YOMCT0    , ONLY : LR3D, LR2D, NCONF, LECMWF, LELAM,L_OOPS, LXIOS
 USE YOMVAR    , ONLY : LJC
+#ifdef WITH_XIOS
+USE SUXIOS   , ONLY : SUXIOS_PEXTRA_FIELDS
+#endif
 
 !     ------------------------------------------------------------------
 
@@ -176,6 +179,14 @@ ENDIF
 
 CALL POSNAM(NULNAM,'NAMDPHY')
 READ(NULNAM,NAMDPHY)
+
+#ifdef WITH_XIOS
+!*    Set up NVEXTR and NCEXTR variables (NAMDPHY namelist) from XIOS
+IF (LXIOS) THEN
+  WRITE(NULOUT,*) '------ Set up NVEXTR and NCEXTR variables (NAMDPHY namelist) from XIOS ------'
+  CALL SUXIOS_PEXTRA_FIELDS('NAMDPHY')
+ENDIF
+#endif
 
 !     ------------------------------------------------------------------
 !*       2. CHECKINGS AND RESETTINGS FOR YOMDPHY VARIABLES.

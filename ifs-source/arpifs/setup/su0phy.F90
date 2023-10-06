@@ -140,11 +140,14 @@ USE YOMHOOK    ,  ONLY : LHOOK,   DR_HOOK, JPHOOK
 USE YOMLUN     , ONLY : NULOUT   ,NULNAM
 USE YOMPHY     , ONLY : JPHYEC,JPHYMF,JPHYARO,JPBP002
 USE YOMCT0     , ONLY : LECMWF    ,NCONF    ,LR3D     ,LR2D     ,LARPEGEF,&
- &                      LAROME,LOBSC1,LSCREEN,LSFXLSM
+ &                      LAROME,LOBSC1,LSCREEN,LSFXLSM, LXIOS
 USE YOMVRTL    , ONLY : L131TL
 USE YOMVAR     , ONLY : LREPRO4DVAR
 USE YOMDYNCORE , ONLY : LAQUA, LHELDSUAREZ
 USE YOMFPC     , ONLY : TNAMFPSCI
+#ifdef WITH_XIOS
+USE SUXIOS   , ONLY : SUXIOS_PEXTRA_FIELDS
+#endif
 
 !     ------------------------------------------------------------------
 
@@ -1721,6 +1724,14 @@ ENDIF
 
 CALL POSNAM(NULNAM,'NAEPHY')
 READ(NULNAM,NAEPHY)
+
+#ifdef WITH_XIOS
+!*    Set up LBUD23 variable (NAEPHY namelist) from XIOS
+IF (LXIOS) THEN
+  WRITE(NULOUT,*)'------ Set up LBUD23 variable (NAEPHY namelist) from XIOS ------'
+  CALL SUXIOS_PEXTRA_FIELDS('NAEPHY')
+ENDIF
+#endif
 
 ! Work-around for PGI compiler bug
 YDEPHY%CO3CHEM=CO3CHEM

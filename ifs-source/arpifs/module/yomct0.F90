@@ -179,6 +179,7 @@ SAVE
 ! NDHFZTS   : array containing write out steps for zonal means DDH
 ! NDHFDTS   : array containing write out steps for limited areas DDH
 ! NDHPTS    : array containing write out steps for DDH
+! LXIOS     : switch to send diagnostics to xios
 ! Explanation for N[XXX]TS:
 !             1) if N[XXX]TS(0)=0 action if MOD(JSTEP,NFR[XXX])=0
 !             2) if N[XXX]TS(0)>0 N[XXX]TS(0) significant numbers in 
@@ -342,6 +343,7 @@ INTEGER(KIND=JPIM) :: NDHFGTS(0:JPNPST)
 INTEGER(KIND=JPIM) :: NDHFZTS(0:JPNPST)
 INTEGER(KIND=JPIM) :: NDHFDTS(0:JPNPST)
 INTEGER(KIND=JPIM) :: NDHPTS(0:JPNPST)
+LOGICAL :: LXIOS
 
 ! * Assimilation:
 LOGICAL :: L4DVAR=.FALSE.

@@ -254,6 +254,15 @@ if( HAVE_MGRIDS )
   list(APPEND IFS_DEFINITIONS WITH_MGRIDS )
   add_subdirectory( atlas_apps )
 endif()
+
+if ( ENABLE_OIFS_XIOS )
+ list(APPEND IFS_DEFINITIONS WITH_XIOS)
+endif ()
+
+if ( ENABLE_OIFS_CPLNG )
+ list(APPEND IFS_DEFINITIONS WITH_CPLNG)
+endif ()
+
 include(dummy)
 include(fiat)
 include(intfb)

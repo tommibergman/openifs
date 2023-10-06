@@ -80,6 +80,7 @@ SUBROUTINE SU0YOMA(YDGEOMETRY,YDSURF,YDMODEL)
 !      R. El Khatib 17-Aug-2016 move suoph up from su0yomb to su0yoma and move down sufa
 !      S. Massart   19-Feb-2019 Augmented control variable
 !      F. Vana      11-Sep-2020 Cleaning & moving SLAVEPP setup to better location
+!      A. Hill      06-Oct-2023 ifdef to move SUIOS from SU0YOMB to SU0YOMA, needed for XIOS
 !     ------------------------------------------------------------------
 
 USE TYPE_MODEL         , ONLY : MODEL
@@ -88,11 +89,14 @@ USE SURFACE_FIELDS_MIX , ONLY : TSURF
 USE PARKIND1           , ONLY : JPIM, JPRB
 USE YOMHOOK            , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMLUN             , ONLY : NULOUT
-USE YOMCT0             , ONLY : LMINIM, LR2D, NCONF, LOBSC1
+USE YOMCT0             , ONLY : LMINIM, LR2D, NCONF, LOBSC1, LXIOS
 USE YOMCLMICST         , ONLY : SETUP_CLMICST
 
 USE YOMSATSIM,    ONLY : NSATSIM
 
+#ifdef WITH_XIOS
+USE SUXIOS,    ONLY : SUXIOS_INI_CTXT, SUXIOS_NAMCT0B, SUXIOS_CTXT, SUXIOS_NAMFPC
+#endif
 
 !     ------------------------------------------------------------------
 
@@ -154,6 +158,26 @@ CALL SUGEOMETRY(YDGEOMETRY)
 !     ------------------------------------------------------------------
 !*       4. "MODEL" PART SET-UP.
 !           --------------------
+#ifdef WITH_XIOS
+!*    Initialize I/O-scheme
+WRITE(NULOUT,*) '---- Set up I/O scheme --------------',CLINE
+CALL SUIOS
+
+IF (LXIOS) THEN
+  !*    Initialize XIOS context definition
+  WRITE(NULOUT,*) '------ Initialize XIOS context definition -----',CLINE
+  CALL SUXIOS_INI_CTXT
+  !*    Set up NFRPOS and NFRHIS variables (NAMCT0) from XIOS
+  !*    It must be done at this point since the XIOS context needs to be initalized
+  !*    in order to parse XML files and read the values of NFRPOS and NFRHIS variables.
+  WRITE(NULOUT,*) '------ Set up NFRPOS and NFRHIS variables (NAMCT0) from XIOS -',CLINE
+  CALL SUXIOS_NAMCT0B
+  !*    Set up and close XIOS context definition
+  WRITE(NULOUT,*) '------ Set up and close XIOS context definition',CLINE
+  CALL SUXIOS_CTXT(YDGEOMETRY)
+ENDIF
+#endif
+
 WRITE(NULOUT,*) '--- Set up dynamics part A ---------',CLINE
 CALL SUDYNA(YDGEOMETRY%YRDIM,YDMODEL%YRML_DYN%YRDYNA,YDGEOMETRY%YRCVER%LVERTFE, &
  & YDGEOMETRY%YRCVER%NDLNPR,YDGEOMETRY%LNONHYD_GEOM,NULOUT)
@@ -165,6 +189,14 @@ CALL SURIP(YDGEOMETRY%YRDIM,YDMODEL%YRML_DYN%YRDYNA,YDMODEL%YRML_GCONF%YRRIP)
 !*    Initialize control of physical parameterizations
 WRITE(NULOUT,*) '-- Set up physical parameterizations ',CLINE
 CALL SU0PHY(YDMODEL,NULOUT)
+
+#ifdef WITH_XIOS
+  !*    Set up NAMFPC variables from XIOS
+  IF (LXIOS) THEN
+    WRITE(NULOUT,*) '------ Set up NAMFPC variables from XIOS ------'
+    CALL SUXIOS_NAMFPC(YDGEOMETRY)
+  ENDIF
+#endif
 
 !*    Initialize control of the adjoint physics
 WRITE(NULOUT,*) '------ Set up NH trajectory -------',CLINE
