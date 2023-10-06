@@ -82,9 +82,8 @@ ZMPI_INIT(:) = 0
 ! XIOS and MPI initialization
 #ifdef WITH_XIOS
 CALL SUXIOS_INI
-! #elif WITH_CPLNG
-! CALL CPLNG_INIT
-! #endif
+#elif WITH_CPLNG2
+CALL CPLNG2_INIT
 #endif
 
 ! OASIS3 or OASIS4 interface must be initialized before any DR_HOOK call.
@@ -277,9 +276,8 @@ IF (LLNEMOIO) CALL ENDNEMOIO()
 ! XIOS and MPI finalization
 #ifdef WITH_XIOS
 CALL SUXIOS_FIN
-! #elif WITH_CPLNG
-! CALL CPLNG_FINALIZE
-! #endif
+#elif WITH_CPLNG2
+CALL CPLNG2_FINALIZE
 #endif
 
 ENDIF

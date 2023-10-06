@@ -165,7 +165,7 @@ USE CXIOS, ONLY : IFS_XIOS_CALENDAR
 #endif
 
 USE ECEARTH
-USE CPLNG
+USE CPLNG2
 
 !      ----------------------------------------------------------------
 
@@ -1320,7 +1320,7 @@ DO
 #endif
 
   !*           Coupling to Ocean - EC-Earth style
-  IF (ECE_CPL_NEMO_LIM .OR. ECE_CPL_FESOM_FESIM) CALL CPLNG_EXCHANGE(ECE_CPL_STAGE_OCE_SND)
+  IF (ECE_CPL_NEMO_LIM .OR. ECE_CPL_FESOM_FESIM) CALL CPLNG2_EXCHANGE(INT(TSTEP,KIND=JPIM),ECE_CPL_STAGE_OCE_SND,YDDYNA,YDRIP)
 
   !*     3.21  Write animation file (ISP)
 

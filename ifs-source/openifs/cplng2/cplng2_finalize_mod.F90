@@ -1,0 +1,27 @@
+MODULE CPLNG2_FINALIZE_MOD
+
+    IMPLICIT NONE
+
+    PRIVATE
+
+    PUBLIC CPLNG2_FINALIZE
+
+CONTAINS
+
+    SUBROUTINE CPLNG2_FINALIZE
+        USE PARKIND1, ONLY: JPIM
+        USE MOD_OASIS
+        USE CPLNG2_DATA_MOD
+        ! locals
+        INTEGER(KIND=JPIM) :: error
+        CHARACTER(LEN=3) :: error_str
+
+        CALL OASIS_TERMINATE(error)
+
+        IF (error /= OASIS_OK) THEN
+            WRITE (error_str, '(I3)') error
+            CALL ABOR1("CPLNG2_FINALIZE: OASIS_TERMINATE returns error code: "//error_str)
+        END IF
+    END SUBROUTINE CPLNG2_FINALIZE
+
+END MODULE CPLNG2_FINALIZE_MOD

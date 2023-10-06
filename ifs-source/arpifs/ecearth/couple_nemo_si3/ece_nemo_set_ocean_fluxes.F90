@@ -11,7 +11,7 @@ SUBROUTINE ECE_NEMO_SET_OCEAN_FLUXES(YDSURF, KDIM, SURFL, PSURF, FLUX)
     USE YOMHOOK, ONLY: LHOOK, DR_HOOK, JPHOOK
     USE ECEARTH, ONLY: ECE_CPL_NEMO_CONSERVATIVE_HEATFLUX
 
-    USE CPLNG
+    USE CPLNG2
 
     IMPLICIT NONE
 
@@ -48,44 +48,44 @@ SUBROUTINE ECE_NEMO_SET_OCEAN_FLUXES(YDSURF, KDIM, SURFL, PSURF, FLUX)
     ! *** Momentum fluxes (stresses)
     ! =========================================================================
 
-    CPLNG_FLD(CPLNG_IDX('A_TauX_oce'))%D(IG:IG+IE,1,1) = PSURF%PUSTRTI(IL:IL+IE,1)
-    CPLNG_FLD(CPLNG_IDX('A_TauY_oce'))%D(IG:IG+IE,1,1) = PSURF%PVSTRTI(IL:IL+IE,1)
-    CPLNG_FLD(CPLNG_IDX('A_TauX_ice'))%D(IG:IG+IE,1,1) = PSURF%PUSTRTI(IL:IL+IE,2)
-    CPLNG_FLD(CPLNG_IDX('A_TauY_ice'))%D(IG:IG+IE,1,1) = PSURF%PVSTRTI(IL:IL+IE,2)
+    CPLNG2_FLD(CPLNG2_IDX('A_TauX_oce'))%D(IG:IG+IE,1,1) = PSURF%PUSTRTI(IL:IL+IE,1)
+    CPLNG2_FLD(CPLNG2_IDX('A_TauY_oce'))%D(IG:IG+IE,1,1) = PSURF%PVSTRTI(IL:IL+IE,1)
+    CPLNG2_FLD(CPLNG2_IDX('A_TauX_ice'))%D(IG:IG+IE,1,1) = PSURF%PUSTRTI(IL:IL+IE,2)
+    CPLNG2_FLD(CPLNG2_IDX('A_TauY_ice'))%D(IG:IG+IE,1,1) = PSURF%PVSTRTI(IL:IL+IE,2)
 
     ! =========================================================================
     ! *** Radiative fluxes (solar, non-solar, dQ/dT)
     ! =========================================================================
 
     IF (ECE_CPL_NEMO_CONSERVATIVE_HEATFLUX) THEN
-      CPLNG_FLD(CPLNG_IDX('A_Qs_mix'  ))%D(IG:IG+IE,1,1) = &
+      CPLNG2_FLD(CPLNG2_IDX('A_Qs_mix'  ))%D(IG:IG+IE,1,1) = &
       &                     SURFL%ZFRTI(IL:IL+IE,1)*SURFL%ZFRSOTI(IL:IL+IE,1) &
       &                   + SURFL%ZFRTI(IL:IL+IE,2)*SURFL%ZFRSOTI(IL:IL+IE,2)
     ELSE
-      CPLNG_FLD(CPLNG_IDX('A_Qs_oce'  ))%D(IG:IG+IE,1,1) = &
+      CPLNG2_FLD(CPLNG2_IDX('A_Qs_oce'  ))%D(IG:IG+IE,1,1) = &
       &                                             SURFL%ZFRSOTI(IL:IL+IE,1)
     ENDIF
 
-    CPLNG_FLD(CPLNG_IDX('A_Qs_ice'  ))%D(IG:IG+IE,1,1) = &
+    CPLNG2_FLD(CPLNG2_IDX('A_Qs_ice'  ))%D(IG:IG+IE,1,1) = &
     &                                               SURFL%ZFRSOTI(IL:IL+IE,2)
 
     ! Latent heat flux is computed from evaporation over water(1) and ice(2)
     ZAHFLTI(IL:IL+IE,1) = PSURF%PEVAPTI(IL:IL+IE,1) * RLVTT
     ZAHFLTI(IL:IL+IE,2) = PSURF%PEVAPTI(IL:IL+IE,2) * RLSTT
 
-    CPLNG_FLD(CPLNG_IDX('A_Qns_ice'))%D(IG:IG+IE,1,1) = &
+    CPLNG2_FLD(CPLNG2_IDX('A_Qns_ice'))%D(IG:IG+IE,1,1) = &
     &                                             PSURF%PAHFSTI(IL:IL+IE,2) &
     &                                           + ZAHFLTI(IL:IL+IE,2)       &
     &                                           + SURFL%ZAHFTRTI(IL:IL+IE,2)
 
     IF (ECE_CPL_NEMO_CONSERVATIVE_HEATFLUX) THEN
-      CPLNG_FLD(CPLNG_IDX('A_Qns_mix'))%D(IG:IG+IE,1,1) = &
-      &   SURFL%ZFRTI(IL:IL+IE,2) * CPLNG_FLD(CPLNG_IDX('A_Qns_ice'))%D(IG:IG+IE,1,1) &
+      CPLNG2_FLD(CPLNG2_IDX('A_Qns_mix'))%D(IG:IG+IE,1,1) = &
+      &   SURFL%ZFRTI(IL:IL+IE,2) * CPLNG2_FLD(CPLNG2_IDX('A_Qns_ice'))%D(IG:IG+IE,1,1) &
       & + SURFL%ZFRTI(IL:IL+IE,1) * ( PSURF%PAHFSTI(IL:IL+IE,1)    &
       &                               + ZAHFLTI(IL:IL+IE,1)        &
       &                               + SURFL%ZAHFTRTI(IL:IL+IE,1) )
     ELSE
-      CPLNG_FLD(CPLNG_IDX('A_Qns_oce'))%D(IG:IG+IE,1,1) = &
+      CPLNG2_FLD(CPLNG2_IDX('A_Qns_oce'))%D(IG:IG+IE,1,1) = &
       &                                           PSURF%PAHFSTI(IL:IL+IE,1) &
       &                                         + ZAHFLTI(IL:IL+IE,1)       &
       &                                         + SURFL%ZAHFTRTI(IL:IL+IE,1)
@@ -99,7 +99,7 @@ SUBROUTINE ECE_NEMO_SET_OCEAN_FLUXES(YDSURF, KDIM, SURFL, PSURF, FLUX)
 
     ! From NEMO core bulk formulae
     ! Pay attention to the signs from the various contributions!
-    CPLNG_FLD(CPLNG_IDX('A_dQns_dT'))%D(IG:IG+IE,1,1) =               &
+    CPLNG2_FLD(CPLNG2_IDX('A_dQns_dT'))%D(IG:IG+IE,1,1) =               &
     &                   -4.00 * 0.95 * RSIGMA * ZTS3(IL:IL+IE)        &
     &                   -1.22 * RCPD * 1.63e-3 * ZU10(IL:IL+IE)       &
     &                   + RLSTT * 1.63e-3 * 11637800.                 &
@@ -110,7 +110,7 @@ SUBROUTINE ECE_NEMO_SET_OCEAN_FLUXES(YDSURF, KDIM, SURFL, PSURF, FLUX)
     ! *** Mass fluxes (runoff, precipitation, evaporation)
     ! =========================================================================
 
-    CPLNG_FLD(CPLNG_IDX('A_Runoff'))%D(IG:IG+IE,1,1) = &
+    CPLNG2_FLD(CPLNG2_IDX('A_Runoff'))%D(IG:IG+IE,1,1) = &
     &                             FLUX%PFWRO1(IL:IL+IE) + FLUX%PFWROD(IL:IL+IE)
 
     ! remove excess snow and send it into the ocean as ice ("calving")
@@ -118,22 +118,22 @@ SUBROUTINE ECE_NEMO_SET_OCEAN_FLUXES(YDSURF, KDIM, SURFL, PSURF, FLUX)
     ! in surf/module/surftstp_ctl_mod.F90
     ! transform excess snow to a mass flux
     ZCALV(IL:IL+IE)=MAX(0._JPRB,PSURF%PSP_SG(IL:IL+IE,YSP_SG%YF%MP)-10000._JPRB)/TSPHY
-    CPLNG_FLD(CPLNG_IDX('A_Calving'))%D(IG:IG+IE,1,1) = ZCALV(IL:IL+IE)
+    CPLNG2_FLD(CPLNG2_IDX('A_Calving'))%D(IG:IG+IE,1,1) = ZCALV(IL:IL+IE)
     ! remove the same amount from the snow tendency to keep the mass balance
     PSURF%PSNSE1(IL:IL+IE) = PSURF%PSNSE1(IL:IL+IE)-ZCALV(IL:IL+IE)
 
-    CPLNG_FLD(CPLNG_IDX('A_Precip_liquid'))%D(IG:IG+IE,1,1) = &
+    CPLNG2_FLD(CPLNG2_IDX('A_Precip_liquid'))%D(IG:IG+IE,1,1) = &
     &         FLUX%PFPLCL(IL:IL+IE,KDIM%KLEV) + FLUX%PFPLSL(IL:IL+IE,KDIM%KLEV)
 
-    CPLNG_FLD(CPLNG_IDX('A_Precip_solid'))%D(IG:IG+IE,1,1) = &
+    CPLNG2_FLD(CPLNG2_IDX('A_Precip_solid'))%D(IG:IG+IE,1,1) = &
     &         FLUX%PFPLCN(IL:IL+IE,KDIM%KLEV) + FLUX%PFPLSN(IL:IL+IE,KDIM%KLEV)
 
 
-    CPLNG_FLD(CPLNG_IDX('A_Evap_total'))%D(IG:IG+IE,1,1) = &
+    CPLNG2_FLD(CPLNG2_IDX('A_Evap_total'))%D(IG:IG+IE,1,1) = &
     &                     - PSURF%PEVAPTI(IL:IL+IE,1) * SURFL%ZFRTI(IL:IL+IE,1) &
     &                     - PSURF%PEVAPTI(IL:IL+IE,2) * SURFL%ZFRTI(IL:IL+IE,2)
 
-    CPLNG_FLD(CPLNG_IDX('A_Evap_ice'))%D(IG:IG+IE,1,1) = &
+    CPLNG2_FLD(CPLNG2_IDX('A_Evap_ice'))%D(IG:IG+IE,1,1) = &
     &                     - PSURF%PEVAPTI(IL:IL+IE,2)
 
     END ASSOCIATE

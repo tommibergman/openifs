@@ -90,15 +90,15 @@ if ( NOT ENABLE_OIFS_XIOS )
   )
 endif ()
 
-
-# if ( ENABLE_OIFS_CPLNG )
-#   ecbuild_list_add_pattern(LIST arpifs.${PREC}_src GLOB
-#     openifs/cplng/*  
-#   )
-# else ()
-  # ecbuild_list_add_pattern(LIST arpifs.${PREC}_src GLOB
-  #   openifs/dummy_cplng/*  
-# endif ()
+if ( ENABLE_CPLNG2 )
+  ecbuild_list_add_pattern(LIST arpifs.${PREC}_src GLOB
+    openifs/cplng2/*
+  )
+else ()
+  ecbuild_list_add_pattern(LIST arpifs.${PREC}_src GLOB
+    openifs/dummy_cplng2/*
+  )
+endif ()
 
 list(APPEND arpifs_public_libs openifs_intfb) 
 
