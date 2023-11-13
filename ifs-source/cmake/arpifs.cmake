@@ -90,17 +90,7 @@ if ( NOT ENABLE_OIFS_XIOS )
   )
 endif ()
 
-if ( ENABLE_CPLNG2 )
-  ecbuild_list_add_pattern(LIST arpifs.${PREC}_src GLOB
-    openifs/cplng2/*
-  )
-else ()
-  ecbuild_list_add_pattern(LIST arpifs.${PREC}_src GLOB
-    openifs/dummy_cplng2/*
-  )
-endif ()
-
-list(APPEND arpifs_public_libs openifs_intfb) 
+list(APPEND arpifs_public_libs openifs_intfb)
 
 # Intel 18.* has problems compiling arpifs/oops/fields_io_mod, which is only used by OOPS.
 # OOPS not being tested with Intel 18, we exclude the file for this compiler major version
@@ -113,37 +103,74 @@ if(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
   endif()
 endif()
 
-ecbuild_add_library(
-  TARGET  arpifs.${PREC}
-  SOURCES ${arpifs.${PREC}_src}
-
-  DEFINITIONS ${IFS_DEFINITIONS}
-
-  PUBLIC_INCLUDES
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/arpifs/common>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/arpifs/function>
-
-  PRIVATE_INCLUDES
+# Base PRIVATE_INCLUDES list
+set(PRIVATE_INCLUDES
     arpifs/namelist
     arpifs/ald_inc/namelist
     arpifs/ald_inc/interface
     arpifs/ald_inc/function
     arpifs/var
     ${arpifs_private_includes}
+)
 
-  PUBLIC_LIBS arpifs_intfb surf.${PREC} trans.${PREC}
+# Base PRIVATE_INCLUDES list
+set(PUBLIC_LIBS
+    arpifs_intfb
+    surf.${PREC}
+    trans.${PREC}
     ${arpifs_public_libs}
-    algor.${PREC} ${IFSAUX_LIBRARIES} fckit
-    ${ECCODES_LIBRARIES} ${ATLAS_LIBRARIES}
-    ${MULTIO_LIBRARIES} ${FDB_LIBRARIES}
+    algor.${PREC}
+    ${IFSAUX_LIBRARIES}
+    fckit
+    ${ECCODES_LIBRARIES}
+    ${ATLAS_LIBRARIES}
+    ${MULTIO_LIBRARIES}
+    ${FDB_LIBRARIES}
     ${NEMOVAR_LIBRARIES}
-    NetCDF::NetCDF_Fortran # [IFS-HHH] for radiation/module/easy_netcdf.F90
+    NetCDF::NetCDF_Fortran
+)
 
+
+ecbuild_add_library(
+  TARGET  arpifs.${PREC}
+  SOURCES ${arpifs.${PREC}_src}
+  DEFINITIONS ${IFS_DEFINITIONS}
+  PUBLIC_INCLUDES
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/arpifs/common>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/arpifs/function>
+  PRIVATE_INCLUDES ${PRIVATE_INCLUDES}
+  PUBLIC_LIBS ${PUBLIC_LIBS}
   PRIVATE_LIBS
     ${arpifs_private_libs}
     wam_intfb
     ${LAPACK_LIBRARIES}
 )
+
+if ( ENABLE_OIFS_XIOS )
+  message("--> Building arpifs with OpenIFS/XIOS support")
+  target_include_directories(
+    arpifs.${PREC}
+    PRIVATE ${XIOS_INCLUDE_DIRECTORIES}
+  )
+endif()
+
+if ( ENABLE_CPLNG2 )
+  message("--> Building arpifs with CPLNG2/OASIS support")
+  target_sources(
+    arpifs.${PREC}
+    PRIVATE
+      openifs/cplng2/cplng2_mod.F90
+      openifs/cplng2/cplng2_types_mod.F90
+      openifs/cplng2/cplng2_data_mod.F90
+      openifs/cplng2/cplng2_init_mod.F90
+      openifs/cplng2/cplng2_exchange_mod.F90
+      openifs/cplng2/cplng2_finalize_mod.F90
+  )
+  target_include_directories(
+    arpifs.${PREC}
+    PRIVATE ${OASIS_INCLUDE_DIRECTORIES}
+  )
+endif()
 
 if( HAVE_MGRIDS )
   target_link_libraries( arpifs.${PREC} PUBLIC dwarf_mpdata.${PREC} dwarf_sladv.${PREC} )
@@ -172,6 +199,31 @@ ecbuild_add_executable( TARGET ifsMASTER.${PREC}
   CONDITION HAVE_MPI
  )
 
+if ( ENABLE_OIFS_XIOS )
+  target_link_libraries(
+    ifsMASTER.${PREC}
+    PRIVATE ${XIOS_LIBRARIES} ${NETCDF_LIBRARIES} stdc++
+  )
+endif()
+
+if ( ENABLE_CPLNG2 )
+  target_link_libraries(
+    ifsMASTER.${PREC}
+    PRIVATE ${OASIS_LIBRARIES} ${NETCDF_LIBRARIES}
+  )
+endif()
+
+if( NOT HAVE_FORECAST_ONLY )
+  odb_link_schemas(ifsMASTER.${PREC} ECMA CCMA RSTBIAS
+    COUNTRYRSTRHBIAS SONDETYPERSTRHBIAS)
+
+  if( NOT TARGET unbal_eda )
+    ecbuild_add_executable(TARGET unbal_eda
+      SOURCES arpifs/programs/unbal_eda.F90
+      LIBS arpifs.${PREC} trans.${PREC} ${IFSAUX_LIBRARIES} ${ECCODES_LIBRARIES}
+      LINKER_LANGUAGE Fortran )
+  endif()
+endif()
 
 if( NOT TARGET grib_mean.x )
   ecbuild_add_executable(TARGET grib_mean.x

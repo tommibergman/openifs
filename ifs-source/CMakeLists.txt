@@ -16,6 +16,7 @@ option(IFS_CHECK_BOUNDS "Enable bounds checking" OFF)
 option(IFS_INIT_SNAN "Initialize REALs with signaling NaNs" OFF)
 option(IFS_SHARED_LIBS "Build shared libraries (overrides BUILD_SHARED_LIBS)" ON)
 
+set(CMAKE_VERBOSE_MAKEFILE ON)
 set(BUILD_SHARED_LIBS ${IFS_SHARED_LIBS})
 
 set( PROJECT_NAME ifs )
@@ -256,11 +257,17 @@ if( HAVE_MGRIDS )
 endif()
 
 if ( ENABLE_OIFS_XIOS )
- list(APPEND IFS_DEFINITIONS WITH_XIOS)
+  list(APPEND IFS_DEFINITIONS WITH_XIOS)
+  include(${CMAKE_CURRENT_LIST_DIR}/cmake/FindXIOS.cmake)
 endif ()
 
 if ( ENABLE_OIFS_CPLNG )
  list(APPEND IFS_DEFINITIONS WITH_CPLNG)
+endif ()
+
+if ( ENABLE_CPLNG2 )
+  list(APPEND IFS_DEFINITIONS WITH_CPLNG2)
+  include(${CMAKE_CURRENT_LIST_DIR}/cmake/FindOASIS.cmake)
 endif ()
 
 include(dummy)

@@ -360,7 +360,6 @@ list( APPEND wam_srcs
 ecbuild_add_library(TARGET wam.${PREC}
   PRIVATE_DEFINITIONS ${WAM_DEFINITIONS}
   PUBLIC_INCLUDES
-    #$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/wam/Alt/Include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/wam/function>
     $<BUILD_INTERFACE:${wam_intfb_includes}>
 

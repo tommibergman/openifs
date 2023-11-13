@@ -1,0 +1,21 @@
+- base.context:
+    external_dir: external
+- base.make_dir:
+    path: "{{ external_dir }}"
+- do:
+    - base.echo:
+        msg: "--> Downloading {{item[0]}} (version {{item[1]}})"
+    - base.command:
+        name: git
+        args: [clone, --depth=1, --branch, "{{item[1]}}", "{{item[0]}}"]
+        cwd: "{{ external_dir }}"
+  loop:
+    - ["https://github.com/ecmwf/ecbuild", 3.7.0]
+    - ["https://github.com/ecmwf/eccodes", 2.28.1]
+    - ["https://github.com/ecmwf/eckit", 1.18.8]
+    - ["https://github.com/ecmwf/fckit", 0.10.0]
+    - ["https://github.com/ecmwf/metkit", 1.8.10]
+    - ["https://github.com/ecmwf/fdb", 5.10.6]
+    - ["https://github.com/ecmwf/atlas", 0.31.1]
+    - ["https://github.com/ecmwf/multio", 1.5.1]
+    - ["https://github.com/metomi/fcm", 2019.09.0]

@@ -50,6 +50,8 @@ if( NOT TARGET arpifs_intfb )
         arpifs/smos
         arpifs/transform
         arpifs/utility
+        arpifs/ecearth
+        arpifs/var
 
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}
     DESTINATION arpifs
