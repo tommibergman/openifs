@@ -33,7 +33,7 @@ USE YOS_URB  , ONLY : TURB
 USE CANALB_MOD
 USE ABORT_SURF_MOD
 
-USE ECEARTH
+USE SURFECE
 
 !**** *SURFRAD  - COMPUTES RADIATIVE PROPERTIES OF SURFACE
 
@@ -144,6 +144,7 @@ USE ECEARTH
 !     Robin Hogan   ECMWF   15-01-2019 MODIS albedo 2x3-components 
 !     Robin Hogan   ECMWF   26-02-2019 Removed general spectral rescaling (RWEIGHT)
 !     Robin Hogan   ECMWF   26-02-2019 Use Moody et al. for snow albedo in 2 spectral bands
+!     Jan Streffing AWI     22-11-2023 Add EC-Earth routines for albedo scaling
 !-----------------------------------------------------------------------
 
 IMPLICIT NONE
@@ -269,7 +270,7 @@ ASSOCIATE(RDAY=>YDCST%RDAY, RTT=>YDCST%RTT, &
  & RWRR=>YDURB%RWRR, RROOALB=>YDURB%RROOALB,RURBEMIS=>YDURB%RURBEMIS, &
  & RWCAPM=>YDSOIL%RWCAPM, RWPWP=>YDSOIL%RWPWP, RWPWPM=>YDSOIL%RWPWPM, &
  & RALBICE_AN=>YDSW%RALBICE_AN, RALBICE_AR=>YDSW%RALBICE_AR, RSUN=>YDSW%RSUN, &
- & RWEIGHT=>YDSW%RWEIGHT, ICE_ALB_SPEC_WEIGHT=>YDSW%ICE_ALB_SPEC_WEIGHT)
+ &  NUVVIS=>YDRAD%NUVVIS, ICE_ALB_SPEC_WEIGHT=>YDSW%ICE_ALB_SPEC_WEIGHT)
 
 !     ------------------------------------------------------------------
 !*         1.     INITIAL CALCULATIONS
@@ -480,10 +481,10 @@ IF (.NOT.ECE_CPL_NEMO_LIM) THEN
     ZRW_TOT=0._JPRB
     DO JSW=1,KSW
         ZAI_AR_TOT=ZAI_AR_TOT+ &
-          & RWEIGHT(JSW,2)*(ZW1*RALBICE_AR(IM1,JSW)+ZW2*RALBICE_AR(IM2,JSW))
+          & (ZW1*RALBICE_AR(IM1,JSW)+ZW2*RALBICE_AR(IM2,JSW))
         ZAI_AN_TOT=ZAI_AN_TOT+ &
-          & RWEIGHT(JSW,2)*(ZW1*RALBICE_AN(IM1,JSW)+ZW2*RALBICE_AN(IM2,JSW))
-        ZRW_TOT=ZRW_TOT+RWEIGHT(JSW,2)
+          & (ZW1*RALBICE_AN(IM1,JSW)+ZW2*RALBICE_AN(IM2,JSW))
+        ZRW_TOT=ZRW_TOT+1.0_JPRB
     ENDDO
 
     DO JL=KIDIA,KFDIA

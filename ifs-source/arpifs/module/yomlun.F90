@@ -10,7 +10,7 @@
 MODULE YOMLUN
 
 USE PARKIND1  ,ONLY : JPIM
-USE YOMLUN_IFSAUX, ONLY : NULOUT, NULERR
+USE YOMLUN_IFSAUX, ONLY : NULOUT, NULERR, NULNAM
 
 IMPLICIT NONE
 
@@ -108,7 +108,7 @@ PUBLIC :: NULERR, NULSTAT, NULNAM, NSCRTCH, NULFP10, NULCL1, NULFP11, &
 INTEGER(KIND=JPIM), PARAMETER :: NULSTAT =  1
 !                                           2
 !                                           3
-INTEGER(KIND=JPIM), PARAMETER :: NULNAM  =  4
+!INTEGER(KIND=JPIM), PARAMETER :: NULNAM =  4 defined in yomlun_ifsaux.F90
 !                                           5
 ! --- Reserved by Fortran                   6
 INTEGER(KIND=JPIM), PARAMETER :: NULFP11 =  7

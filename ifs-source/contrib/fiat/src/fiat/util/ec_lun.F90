@@ -25,9 +25,11 @@ PUBLIC
 
 !     NULOUT :   output unit
 !     NULERR :   unit number for comparison with reference run
+!     NULNAM :   unit number for namelist
 
 INTEGER(KIND=JPIM) :: NULOUT = 6
 INTEGER(KIND=JPIM) :: NULERR = 0
+INTEGER(KIND=JPIM), PARAMETER :: NULNAM  =  4
 
 !     ------------------------------------------------------------------
 END MODULE EC_LUN

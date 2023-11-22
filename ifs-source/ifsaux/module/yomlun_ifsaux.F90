@@ -9,13 +9,13 @@
 
 MODULE YOMLUN_IFSAUX
 
-USE EC_LUN  ,ONLY : NULOUT, NULERR
+USE EC_LUN  ,ONLY : NULOUT, NULERR, NULNAM
 
 IMPLICIT NONE
 
 SAVE
 PRIVATE
-PUBLIC :: NULOUT, NULERR
+PUBLIC :: NULOUT, NULERR, NULNAM
 
 !     ------------------------------------------------------------------
 
@@ -23,6 +23,7 @@ PUBLIC :: NULOUT, NULERR
 
 !     NULOUT :   output unit
 !     NULERR :   unit number for comparison with reference run
+!     NULNAM :   unit number for namelist
 
 !     ------------------------------------------------------------------
 END MODULE YOMLUN_IFSAUX
