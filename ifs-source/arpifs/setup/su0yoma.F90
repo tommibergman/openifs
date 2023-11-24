@@ -157,7 +157,7 @@ CALL GSTATS(1934,0)
 WRITE(NULOUT,*) '------ Set up model geometry  ------',CLINE
 CALL SUGEOMETRY(YDGEOMETRY)
 
-CALL ECE_CONFIG(YDGEOMETRY)
+CALL ECE_CONFIG(YDGEOMETRY, YDMODEL)
 
 !     ------------------------------------------------------------------
 !*       4. "MODEL" PART SET-UP.

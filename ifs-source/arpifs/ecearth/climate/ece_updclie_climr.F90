@@ -1,12 +1,10 @@
-subroutine ece_updclie_climr(YDGEOMETRY, YDSURF)
+subroutine ece_updclie_climr(YDGEOMETRY, YDSURF, YDMODEL)
 
    use PARKIND1, only: JPRB, JPRD, JPIM, JPIB
    use GEOMETRY_MOD, only: GEOMETRY
    use SURFACE_FIELDS_MIX, only: TSURF
    use YOMCT0, only: CNMEXP
-   use YOMRIP, only: YRRIP
-   use YOMMCC, only: YRMCC
-   use YOEPHY, only: YREPHY
+   use TYPE_MODEL, only : MODEL
    use YOMLUN, only: NULOUT, NULERR
    use YOMMP0, only: MYPROC
    use MPL_MODULE, only: MPL_BROADCAST
@@ -15,6 +13,7 @@ subroutine ece_updclie_climr(YDGEOMETRY, YDSURF)
 
    type(GEOMETRY), intent(in) :: YDGEOMETRY
    type(TSURF), intent(inout) :: YDSURF
+   type(MODEL),  intent(inout) :: YDMODEL
 
    integer, parameter :: max_idates = 12*55  ! max no. of dates in the CLIMR file
    integer, parameter :: max_fields = 10  ! max no. of fields (vars) in the file
@@ -128,12 +127,13 @@ contains
 
    function current_date() result(date)
       use YOMRIP0, only: NINDAT
-      use YOMRIP, only: YRRIP
       type(t_date) :: date, start
       integer(kind=JPIM) :: dd, mm, yy, nmm(12)
+      associate(YDRIP=>YDMODEL%YRML_GCONF%YRRIP)
       start = date_from_ymd(NINDAT)
-      call UPDCAL(start%d, start%m, start%y, YRRIP%NSTADD, dd, mm, yy, nmm, -1)
+      call UPDCAL(start%d, start%m, start%y, YDRIP%NSTADD, dd, mm, yy, nmm, -1)
       date = date_from_y_m_d(yy, mm, dd)
+      end associate
    end function current_date
 
    pure function shift_date(date, date_a, date_b)
@@ -296,7 +296,6 @@ contains
    end subroutine setup_toc
 
    subroutine read_fields(date, tlindex)
-      use YOMMCC, only: YRMCC
       use DISGRID_MOD, only: DISGRID_SEND, DISGRID_RECV
       use GRIB_API_INTERFACE, only: &
          IGRIB_OPEN_FILE, &
@@ -407,9 +406,9 @@ contains
                end if
             end if
          else
-            call DISGRID_RECV(YDGEOMETRY%YRGEM, 1, 1, loc_fieldbuf, i)
+            call DISGRID_RECV(YDGEOMETRY, 1, 1, loc_fieldbuf, i)
          end if
-         YRMCC%CLIMR(:, tlindex, i) = REAL(loc_fieldbuf(:), JPRD)
+         YDMODEL%YRML_AOC%YRMCC%CLIMR(:, tlindex, i) = REAL(loc_fieldbuf(:), JPRD)
       end do
    end subroutine read_fields
 
@@ -425,11 +424,11 @@ contains
       associate ( &
          NGPTOT => YDGEOMETRY%YRGEM%NGPTOT, &
          NPROMA => YDGEOMETRY%YRDIM%NPROMA, &
-         LE4ALB => YREPHY%LE4ALB, &
-         NCLIGC => YRMCC%NCLIGC, &
+         NALBEDOSCHEME => YDMODEL%YRML_PHY_EC%YREPHY%NALBEDOSCHEME, &
+         NCLIGC => YDMODEL%YRML_AOC%YRMCC%NCLIGC, &
          SD_VF => YDSURF%SD_VF, &
          YSD_VF => YDSURF%YSD_VF, &
-         CLIMR => YRMCC%CLIMR &
+         CLIMR => YDMODEL%YRML_AOC%YRMCC%CLIMR &
          )
 
          nn = 3 - np
@@ -455,7 +454,7 @@ contains
                   + zn*CLIMR(jstglo + jrof - 1, nn, gc174)
 
                ! MODIS albedo, grib parameters 15, 16, 17, 18
-               if (LE4ALB) then
+               if (NALBEDOSCHEME==1) then
                   SD_VF(jrof, YSD_VF%YALUVP%MP, ibl) = &
                      zp*CLIMR(jstglo + jrof - 1, np, gc15) &
                      + zn*CLIMR(jstglo + jrof - 1, nn, gc15)

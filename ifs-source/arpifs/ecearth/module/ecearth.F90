@@ -56,13 +56,15 @@ CONTAINS
 ! =============================================================================
 ! *** ECE_CONFIG
 ! =============================================================================
-SUBROUTINE ECE_CONFIG(YDGEOMETRY)
+SUBROUTINE ECE_CONFIG(YDGEOMETRY, YDMODEL)
 
-    USE GEOMETRY_MOD, ONLY: GEOMETRY
-    USE YOMLUN, ONLY: NULOUT, NULNAM
+    USE GEOMETRY_MOD,  ONLY: GEOMETRY
+    USE TYPE_MODEL,    ONLY: MODEL
+    USE YOMLUN,        ONLY: NULOUT, NULNAM
 
     ! Argument
     TYPE(GEOMETRY), INTENT(IN) :: YDGEOMETRY
+    TYPE(MODEL),    INTENT(INOUT) :: YDMODEL
 
     ! Read EC-Earth configuration namelist
     CALL POSNAM(NULNAM,'NAMECECFG')
@@ -79,7 +81,7 @@ SUBROUTINE ECE_CONFIG(YDGEOMETRY)
 
     ! Configure CPLNG2
     IF (ECE_CPL_AMIP .OR. ECE_CPL_NEMO_LIM .OR. ECE_CPL_FESOM_FESIM) THEN
-        CALL ECE_CONFIG_COUPLING(YDGEOMETRY)
+        CALL ECE_CONFIG_COUPLING(YDGEOMETRY, YDMODEL)
     ENDIF
 
     ! Configure reading of CLIMR (ICMCL) files
@@ -90,18 +92,20 @@ END SUBROUTINE ECE_CONFIG
 ! =============================================================================
 ! *** ECE_CONFIG_COUPLING
 ! =============================================================================
-SUBROUTINE ECE_CONFIG_COUPLING(YDGEOMETRY)
+SUBROUTINE ECE_CONFIG_COUPLING(YDGEOMETRY, YDMODEL)
 
     USE GEOMETRY_MOD, ONLY: GEOMETRY
     USE YOMLUN, ONLY: NULOUT
-    USE YOMMCC, ONLY: YRMCC
+    USE TYPE_MODEL, ONLY: MODEL
 
     USE CPLNG2
     USE MOD_OASIS
 
     ! Argument
     TYPE(GEOMETRY), INTENT(IN) :: YDGEOMETRY
+    TYPE(MODEL),    INTENT(INOUT) :: YDMODEL
 
+    ASSOCIATE(YRMCC=>YDMODEL%YRML_AOC%YRMCC)
     ASSOCIATE(LNEMOLIMALB => YRMCC%LNEMOLIMALB, &
     &         LNEMOLIMTEMP => YRMCC%LNEMOLIMTEMP, &
     &         LNEMOLIMTHK => YRMCC%LNEMOLIMTHK, &
@@ -216,6 +220,7 @@ SUBROUTINE ECE_CONFIG_COUPLING(YDGEOMETRY)
     ! -------------------------------------------------------------------------
     CALL CPLNG2_ADD_FLD_COMPLETED(YDGEOMETRY)
 
+    END ASSOCIATE
     END ASSOCIATE
 
 END SUBROUTINE ECE_CONFIG_COUPLING
