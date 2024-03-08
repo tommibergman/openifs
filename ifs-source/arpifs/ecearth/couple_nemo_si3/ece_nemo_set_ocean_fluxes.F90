@@ -117,10 +117,13 @@ SUBROUTINE ECE_NEMO_SET_OCEAN_FLUXES(YDSURF, KDIM, SURFL, PSURF, FLUX)
     ! the threshold 10000 kg/m2 is "loosely" defined at l.638
     ! in surf/module/surftstp_ctl_mod.F90
     ! transform excess snow to a mass flux
-    ZCALV(IL:IL+IE)=MAX(0._JPRB,PSURF%PSP_SG(IL:IL+IE,YSP_SG%YF%MP)-10000._JPRB)/TSPHY
-    CPLNG2_FLD(CPLNG2_IDX('A_Calving'))%D(IG:IG+IE,1,1) = ZCALV(IL:IL+IE)
+
+    ! TODO We have multi layer snow now PSURF%PSP_SG is 3D instead of 2D. Logic needs to be redone!
+
+    !ZCALV(IL:IL+IE)=MAX(0._JPRB,PSURF%PSP_SG(IL:IL+IE,YSP_SG%YF%MP)-10000._JPRB)/TSPHY
+    CPLNG2_FLD(CPLNG2_IDX('A_Calving'))%D(IG:IG+IE,1,1) = 0 !ZCALV(IL:IL+IE)
     ! remove the same amount from the snow tendency to keep the mass balance
-    PSURF%PSNSE1(IL:IL+IE) = PSURF%PSNSE1(IL:IL+IE)-ZCALV(IL:IL+IE)
+    !PSURF%PSNSE1(IL:IL+IE,1:KDIM%KLEVSN) = PSURF%PSNSE1(IL:IL+IE,1:KDIM%KLEVSN)-ZCALV(IL:IL+IE,1:KDIM%KLEVSN)
 
     CPLNG2_FLD(CPLNG2_IDX('A_Precip_liquid'))%D(IG:IG+IE,1,1) = &
     &         FLUX%PFPLCL(IL:IL+IE,KDIM%KLEV) + FLUX%PFPLSL(IL:IL+IE,KDIM%KLEV)
