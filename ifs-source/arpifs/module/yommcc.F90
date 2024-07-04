@@ -66,6 +66,8 @@ SAVE
 ! LNEMOLIMTEMP = .F. ! Use ice temp from LIM
 ! LNEMOLIMTLVL = .F. ! Receive temp levels from LIM
 ! LNEMOLIMTHK  = .T. ! Use ice and snow thickness
+! LNEMOLIMCUR  = .T. ! Use ocean surface currents
+
 ! LMULTIYR     = .T. ! Using multiyear set up - switch needed for pp of chunks
 !
 ! NOACOMM        ===> METHOD OF OASIS COMMUNICATION (1=FORTRAN PIPES, 2=C PIPES, 3=SVIPC)
@@ -211,12 +213,12 @@ SAVE
  LOGICAL :: LNEMOLIMTLVL = .FALSE. ! Receive ice temp levels from LIM
  LOGICAL :: LNEMOLIMTHK = .FALSE.  ! Use ice and snow thickness
  LOGICAL :: LNEMOSICOUP = .TRUE.  ! Strongly couple LIM surface temperature
+ LOGICAL :: LNEMOLIMCUR = .TRUE.   ! Use ocean surface currents
  !
  LOGICAL :: LNEMOATMFLDS = .TRUE.  ! Pass additional atmospheric fields to nemo
  LOGICAL :: LNEMOOCEICEMIX = .FALSE. ! Use Mixture of ice and oce for qns and qs.
  LOGICAL :: LNEMOQNSICEFILT = .FALSE.! Apply temporal filter on dqns_ice in NEMO
  LOGICAL :: LNEMOACCUMFLUX = .TRUE. ! Accumulate fluxes
-
  ! Ocean 3D output on atmosphere grid variables
  LOGICAL :: LNEMOGRIB3D
  INTEGER :: NNEMO3DLEVS
