@@ -518,7 +518,7 @@ CALL SUXFU(YDGEOMETRY,YDFIELDS%YRXFU,YDMODEL%YRML_GCONF%YRRIP,YDMODEL%YRML_PHY_M
 
 !*    Initialize variables for VAREPS (NB: must be called before SUGRIB)
 WRITE(NULOUT,*) '- Set up VAREPS configuration',CLINE
-CALL SUVAREPS(YDMODEL%YRML_GCONF%YRRIP)
+CALL SUVAREPS(YDGEOMETRY,YDMODEL%YRML_GCONF%YRRIP)
 
 !*    Initialize filter for monitoring the coupling updates
 WRITE(NULOUT,*) '------ Set up monitoring coupling-updates',CLINE

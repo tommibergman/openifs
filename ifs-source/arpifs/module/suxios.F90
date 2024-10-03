@@ -7,7 +7,8 @@ USE xios
 IMPLICIT NONE
 PRIVATE
 
-PUBLIC :: suxios_ini, suxios_fin, suxios_ini_ctxt, suxios_fin_ctxt, suxios_ctxt, suxios_namfpc, suxios_namct0a, suxios_namct0b, suxios_pextra_fields
+PUBLIC :: suxios_ini, suxios_fin, suxios_ini_ctxt, suxios_fin_ctxt, suxios_ctxt, suxios_namfpc_l, suxios_namfpc_obj, &
+ & suxios_namfpc_sci, suxios_namct0a, suxios_namct0b, suxios_pextra_fields
 
 CONTAINS
 
@@ -87,18 +88,20 @@ SUBROUTINE suxios_fin_ctxt
 
 END SUBROUTINE suxios_fin_ctxt
 
-SUBROUTINE suxios_ctxt(YDGEOMETRY)
+SUBROUTINE suxios_ctxt(YDGEOMETRY, YDMODEL)
 
   USE GEOMETRY_MOD, ONLY : GEOMETRY
+  USE TYPE_MODEL, ONLY : MODEL
 
   TYPE(GEOMETRY), INTENT(IN) :: YDGEOMETRY
+  TYPE(MODEL), INTENT(IN) :: YDMODEL
 
   CALL GSTATS(2034,0)
   !$OMP SINGLE
 
   ! Date setting
   CALL GSTATS(2036,0)
-  CALL ifs_xios_set_calendar
+  CALL ifs_xios_set_calendar(YDMODEL)
   CALL GSTATS(2036,1)
 
   ! Definition of axes
@@ -124,16 +127,15 @@ SUBROUTINE suxios_ctxt(YDGEOMETRY)
 
 END SUBROUTINE suxios_ctxt
 
-SUBROUTINE ifs_xios_set_calendar
+SUBROUTINE ifs_xios_set_calendar(YDMODEL)
 
-  !USE YOMARG , ONLY : UTSTEP
-  USE YOMRIP   , ONLY : TRIP
+  USE TYPE_MODEL, ONLY : MODEL
   USE YOMRIP0, ONLY : NINDAT, NSSSSS
   USE YOMLUN , ONLY : NULOUT, NULRCF
   USE YOMIOS , ONLY : CFRCF
   USE YOMRES , ONLY : CSTEP
 
-  TYPE(TRIP)         :: YDRIP
+  TYPE(MODEL), INTENT(IN) :: YDMODEL
 
   INTEGER(KIND=JPIM) :: year, month, day, hours, minutes, seconds
   LOGICAL :: lexist
@@ -145,14 +147,14 @@ SUBROUTINE ifs_xios_set_calendar
   INTEGER(KIND=JPIM) :: NSTEPLPP(5,2)
 
 #include "namrcf.nam.h"
-  
-  ASSOCIATE(UTSTEP => YDRIP%TSTEP)
+
+  ASSOCIATE (TSTEP => YDMODEL%YRML_GCONF%YRRIP%TSTEP)
 
   ! Not necessary, the type of calendar is set up in the iodef.xml file
   !CALL xios_define_calendar(type="Gregorian")
 
-  ! The current date is: start_date + NSTEP*UTSTEP
-  time_step%second = UTSTEP
+  ! The current date is: start_date + NSTEP*TSTEP
+  time_step%second = TSTEP
   CALL xios_set_timestep(time_step)
 
   ! Set up time origin of the simulation
@@ -179,7 +181,7 @@ SUBROUTINE ifs_xios_set_calendar
 
     READ(CSTEP, *) nstep_from_origin
     
-    duration_from_origin%second = REAL(nstep_from_origin,JPRB)*UTSTEP
+    duration_from_origin%second = REAL(nstep_from_origin,JPRB)*TSTEP
     start_date = time_origin + duration_from_origin
   ELSE
     ! It is not a restart
@@ -216,14 +218,13 @@ SUBROUTINE ifs_xios_set_axis(YDGEOMETRY)
   INTEGER(KIND=JPIM) :: i
   REAL(KIND=JPRB) :: j
   REAL(KIND=JPRB), ALLOCATABLE :: zML(:)
+  REAL(KIND=8),    ALLOCATABLE :: transfer_value_1d(:)
 
   ! Definition of model levels axis
   ALLOCATE(zML(YDGEOMETRY%YRDIMV%NFLEVG))
-#if defined init_alloc_zero
+  ALLOCATE(transfer_value_1d(YDGEOMETRY%YRDIMV%NFLEVG))
   zML = 0.0_JPRB
-#elif defined init_alloc_huge
-  zML = HUGE(zML)
-#endif
+  transfer_value_1d = 0.0
 
   j = 1.0
   DO i = 1, YDGEOMETRY%YRDIMV%NFLEVG
@@ -232,9 +233,11 @@ SUBROUTINE ifs_xios_set_axis(YDGEOMETRY)
   END DO
 
   ! Output all model levels
-  CALL xios_set_axis_attr(model_axis_name, n_glo=YDGEOMETRY%YRDIMV%NFLEVG, value=zML, unit="-", positive="up")
-
+  transfer_value_1d = REAL(zML,KIND=8)
+  CALL xios_set_axis_attr(model_axis_name, n_glo=YDGEOMETRY%YRDIMV%NFLEVG, value=transfer_value_1d, unit="-", positive="up")
+  zML=REAL(transfer_value_1d, KIND=JPRB)
   DEALLOCATE(zML)
+  DEALLOCATE(transfer_value_1d)
 
 END SUBROUTINE ifs_xios_set_axis
 
@@ -252,6 +255,10 @@ SUBROUTINE ifs_xios_set_domain(YDGEOMETRY)
   REAL(KIND=JPRB), ALLOCATABLE :: lonvalue_1d(:), latvalue_1d(:)
   REAL(KIND=JPRB), ALLOCATABLE :: bounds_lon_1d(:,:), bounds_lat_1d(:,:)
   REAL(KIND=JPRB), ALLOCATABLE :: zrgauslat(:)
+  REAL(KIND=8), ALLOCATABLE    :: transfer_lat_1d(:)
+  REAL(KIND=8), ALLOCATABLE    :: transfer_lon_1d(:)
+  REAL(KIND=8), ALLOCATABLE    :: transfer_lat_2d(:,:)
+  REAL(KIND=8), ALLOCATABLE    :: transfer_lon_2d(:,:)
 
   ni_glo = YDGEOMETRY%YRGEM%NGPTOTG
   ni = YDGEOMETRY%YRGEM%NGPTOT
@@ -260,27 +267,19 @@ SUBROUTINE ifs_xios_set_domain(YDGEOMETRY)
 
   ALLOCATE(i_index(ni))
   ALLOCATE(lonvalue_1d(ni), latvalue_1d(ni))
-#if defined init_alloc_zero
+  ALLOCATE(transfer_lon_1d(ni), transfer_lat_1d(ni))
   lonvalue_1d = 0.0_JPRB
   latvalue_1d = 0.0_JPRB
-#elif defined init_alloc_huge
-  lonvalue_1d = HUGE(lonvalue_1d)
-  latvalue_1d = HUGE(latvalue_1d)
-#endif
+  transfer_lon_1d = 0.0
+  transfer_lat_1d = 0.0
   ALLOCATE(bounds_lon_1d(nvertex, ni), bounds_lat_1d(nvertex, ni)) 
-#if defined init_alloc_zero
+  ALLOCATE(transfer_lon_2d(nvertex, ni), transfer_lat_2d(nvertex, ni))
   bounds_lon_1d = 0.0_JPRB
   bounds_lat_1d = 0.0_JPRB
-#elif defined init_alloc_huge
-  bounds_lon_1d = HUGE(bounds_lon_1d)
-  bounds_lat_1d = HUGE(bounds_lat_1d)
-#endif
+  transfer_lon_2d = 0.0
+  transfer_lat_2d = 0.0
   ALLOCATE (zrgauslat(0:ndglg+1))
-#if defined init_alloc_zero
   zrgauslat = 0.0_JPRB
-#elif defined init_alloc_huge
-  zrgauslat = HUGE(zrgauslat)
-#endif
 
   !
   !* Local domain data
@@ -331,13 +330,22 @@ SUBROUTINE ifs_xios_set_domain(YDGEOMETRY)
   ! Define local domain data
   CALL xios_set_domain_attr(gaussian_domain_name, data_dim=1, data_ibegin=0, data_ni=ni)
   ! Define longitudes and latitudes for grid-point cells
-  CALL xios_set_domain_attr(gaussian_domain_name, lonvalue_1d=lonvalue_1d, latvalue_1d=latvalue_1d)
+  transfer_lon_1d = REAL(lonvalue_1d,KIND=8)
+  transfer_lat_1d = REAL(latvalue_1d,KIND=8)
+  CALL xios_set_domain_attr(gaussian_domain_name, lonvalue_1d=transfer_lon_1d, latvalue_1d=transfer_lat_1d)
+  lonvalue_1d = REAL(transfer_lon_1d,KIND=JPRB)
+  latvalue_1d = REAL(transfer_lat_1d,KIND=JPRB)
   ! Define cell's boundaries
-  CALL xios_set_domain_attr(gaussian_domain_name, nvertex=nvertex, bounds_lon_1d=bounds_lon_1d, bounds_lat_1d=bounds_lat_1d)
-
+  transfer_lon_2d = REAL(bounds_lon_1d,KIND=8)
+  transfer_lat_2d = REAL(bounds_lat_1d,KIND=8)
+  CALL xios_set_domain_attr(gaussian_domain_name, nvertex=nvertex, bounds_lon_1d=transfer_lon_2d, bounds_lat_1d=transfer_lat_2d)
+  bounds_lon_1d = REAL(transfer_lon_2d,KIND=JPRB)
+  bounds_lat_1d = REAL(transfer_lat_2d,KIND=JPRB)
   DEALLOCATE(i_index)
   DEALLOCATE(lonvalue_1d, latvalue_1d)
   DEALLOCATE(bounds_lon_1d, bounds_lat_1d)
+  DEALLOCATE(transfer_lon_1d, transfer_lat_1d)
+  DEALLOCATE(transfer_lon_2d, transfer_lat_2d)
   DEALLOCATE(zrgauslat)
 
 END SUBROUTINE ifs_xios_set_domain
@@ -362,22 +370,104 @@ SUBROUTINE ifs_xios_set_type_communication
 
 END SUBROUTINE ifs_xios_set_type_communication
 
-SUBROUTINE suxios_namfpc(YDGEOMETRY)
 
-  USE GEOMETRY_MOD, ONLY : GEOMETRY
-  USE YOMFPC  , ONLY : TNAMFPL, TNAMFPSCI, TNAMFPOBJ, LTRACEFP
-  USE PARFPOS, ONLY : JPOS3DF, JPOS3S, JPOS3P, JPOS3TH, JPOS3PV, JPOS3H, JPOSSGP, JPOS2DF
-  ! XIOS_FPOS extra logging
+
+SUBROUTINE suxios_namfpc_sci(YDNAMFPSCI)
+
+  USE YOMFPC, ONLY : TNAMFPSCI, LTRACEFP
   USE YOMLUN, ONLY : NULOUT
 
-  TYPE(GEOMETRY)   :: YDGEOMETRY
-  TYPE(TNAMFPL)    :: YDNAMFPL
-  TYPE(TNAMFPSCI)  :: YDNAMFPSCI
-  TYPE(TNAMFPOBJ)  :: YDNAMFPOBJ
+  TYPE(TNAMFPSCI), INTENT(OUT)  :: YDNAMFPSCI
+
+  ASSOCIATE(NFITP=>YDNAMFPSCI%NFITP, NFITT=>YDNAMFPSCI%NFITT, NFITV=>YDNAMFPSCI%NFITV, &
+    & NFPCLI=>YDNAMFPSCI%NFPCLI, LFPQ=>YDNAMFPSCI%LFPQ, RFPCORR=>YDNAMFPSCI%RFPCORR)
+
+  ! Setting spectral fitting and other FullPos variables
+  IF (xios_getvar(nfitp_var_name, NFITP)) THEN
+    WRITE(NULOUT, '(''XIOSFPOS: NFITP IS'',I4)') NFITP
+  ELSE
+    WRITE(NULOUT, '(''XIOSFPOS: NFITP IS NOT DEFINED'')')
+  END IF
+  IF (xios_getvar(nfitt_var_name, NFITT)) THEN
+    WRITE(NULOUT, '(''XIOSFPOS: NFITT IS'',I4)') NFITT
+  ELSE
+    WRITE(NULOUT, '(''XIOSFPOS: NFITT IS NOT DEFINED'')')
+  END IF
+  IF (xios_getvar(nfitv_var_name, NFITV)) THEN
+    WRITE(NULOUT, '(''XIOSFPOS: NFITV IS'',I4)') NFITV
+  ELSE
+    WRITE(NULOUT, '(''XIOSFPOS: NFITV IS NOT DEFINED'')')
+  END IF
+  IF (xios_getvar(nfpcli_var_name, NFPCLI)) THEN
+    WRITE(NULOUT, '(''XIOSFPOS: NFPCLI IS'',I4)') NFPCLI
+  ELSE
+    WRITE(NULOUT, '(''XIOSFPOS: NFPCLI IS NOT DEFINED'')')
+  END IF
+  IF (xios_getvar(lfpq_var_name, LFPQ)) THEN
+    WRITE(NULOUT, '(''XIOSFPOS: LFPQ IS'',L2)') LFPQ
+  ELSE
+    WRITE(NULOUT, '(''XIOSFPOS: LFPQ IS NOT DEFINED'')')
+  END IF
+  IF (xios_getvar(ltracefp_var_name, LTRACEFP)) THEN
+    WRITE(NULOUT, '(''XIOSFPOS: LTRACEFP IS'',L2)') LTRACEFP
+  ELSE
+    WRITE(NULOUT, '(''XIOSFPOS: LTRACEFP IS NOT DEFINED'')')
+  END IF
+  IF (xios_getvar(rfpcorr_var_name, RFPCORR)) THEN
+    WRITE(NULOUT, '(''XIOSFPOS: RFPCORR IS'',F8.1)') RFPCORR
+  ELSE
+    WRITE(NULOUT, '(''XIOSFPOS: RFPCORR IS NOT DEFINED'')')
+  END IF
+  YDNAMFPSCI%NFITI=0
+  YDNAMFPSCI%NFITS=2
+  YDNAMFPSCI%LFPRH100=.TRUE.
+
+
+  END ASSOCIATE
+
+END SUBROUTINE suxios_namfpc_sci
+
+
+
+SUBROUTINE suxios_namfpc_obj(YDNAMFPOBJ)
+
+  USE YOMFPC, ONLY : TNAMFPOBJ
+  USE YOMLUN, ONLY : NULOUT
+
+  TYPE(TNAMFPOBJ), INTENT(OUT)  :: YDNAMFPOBJ
+
+  ASSOCIATE(CFPFMT=>YDNAMFPOBJ%CFPFMT, NFRFPOS=>YDNAMFPOBJ%NFRFPOS)
+
+  CFPFMT = 'MODEL'
+  ! For some reason IFS has two variables that are described to do the same thing:
+  ! NFRFPOS and NFRPOS both control the FULLPOS output frequency.
+  ! We write NFRFPOS from XIOS NFRPOS.
+  IF (xios_getvar(nfrpos_var_name, NFRFPOS)) THEN
+    WRITE(NULOUT, '(''XIOSFPOS: NFRFPOS IS'',I6)') NFRFPOS
+  ELSE
+    WRITE(NULOUT, '(''XIOSFPOS: NFRFPOS IS NOT DEFINED'')')
+  END IF
+
+  END ASSOCIATE
+
+END SUBROUTINE suxios_namfpc_obj
+
+
+
+SUBROUTINE suxios_namfpc_l(YDGEOMETRY,YDNAMFPL)
+
+  USE GEOMETRY_MOD, ONLY : GEOMETRY
+  USE YOMFPC,       ONLY : TNAMFPL
+  USE PARFPOS,      ONLY : JPOS3DF, JPOS3S, JPOS3P, JPOS3TH, JPOS3PV, JPOS3H, JPOSSGP, JPOS2DF
+  USE YOMLUN,       ONLY : NULOUT
+
+  TYPE(GEOMETRY) , INTENT(IN)   :: YDGEOMETRY
+  TYPE(TNAMFPL)  , INTENT(OUT)  :: YDNAMFPL
 
   INTEGER(KIND=JPIM) :: n_glo_ml, n_glo_pl, n_glo_th, n_glo_pv, n_glo_hl, i
   CHARACTER(LEN=16) :: cgrb
   LOGICAL :: lpost = .false.
+  REAL(KIND=8),ALLOCATABLE :: transfer_value_2d(:)
 
   !$OMP SINGLE
 
@@ -389,10 +479,7 @@ SUBROUTINE suxios_namfpc(YDGEOMETRY)
     & MFP3DFS=>YDNAMFPL%MFP3DFS, CFP2DF=>YDNAMFPL%CFP2DF, MFP2DF=>YDNAMFPL%MFP2DF, &
     & NFP2DF=>YDNAMFPL%NFP2DF, MFPPHY=>YDNAMFPL%MFPPHY, NFPPHY=>YDNAMFPL%NFPPHY)
 
-  ASSOCIATE(NFITP=>YDNAMFPSCI%NFITP, NFITT=>YDNAMFPSCI%NFITT, NFITV=>YDNAMFPSCI%NFITV, &
-    & NFPCLI=>YDNAMFPSCI%NFPCLI, LFPQ=>YDNAMFPSCI%LFPQ, RFPCORR=>YDNAMFPSCI%RFPCORR)
 
-  ASSOCIATE(CFPFMT=>YDNAMFPOBJ%CFPFMT)
   
   !! RFP3I=>YDNAMFPL%RFP3I, RFP3F=>YDNAMFPL%RFP3F, NFP3DFI=>YDNAMFPL%NFP3DFI, 
   !! NFP3DFF=>YDNAMFPL%NFP3DFF, MFP3DFI=>YDNAMFPL%MFP3DFI, MFP3DFF=>YDNAMFPL%MFP3DFF
@@ -492,7 +579,11 @@ SUBROUTINE suxios_namfpc(YDGEOMETRY)
     DO i = 1, JPOS3P
       RFP3P(i) = -9._JPRB
     END DO
-    CALL xios_get_axis_attr(pressure_axis_name, value=RFP3P(1:n_glo_pl))
+    ALLOCATE(transfer_value_2d(1:n_glo_pl))
+    transfer_value_2d = REAL(RFP3P, KIND=8)
+    CALL xios_get_axis_attr(pressure_axis_name, value=transfer_value_2d(1:n_glo_pl))
+    RFP3P(1:n_glo_pl) = REAL(transfer_value_2d, KIND=JPRB)
+    DEALLOCATE(transfer_value_2d)
   END IF
 
   IF (n_glo_pl > 0 .and. NFP3DFP > 0) THEN
@@ -549,7 +640,10 @@ SUBROUTINE suxios_namfpc(YDGEOMETRY)
     DO i = 1, JPOS3TH
       RFP3TH(i) = -9._JPRB
     END DO
-    CALL xios_get_axis_attr(theta_axis_name, value=RFP3TH(1:n_glo_th))
+    ALLOCATE(transfer_value_2d(1:n_glo_th))
+    CALL xios_get_axis_attr(theta_axis_name, value=transfer_value_2d(1:n_glo_th))
+    RFP3TH(1:n_glo_th)=REAL(transfer_value_2d, KIND=JPRB)
+    DEALLOCATE(transfer_value_2d)
   END IF
 
   IF (n_glo_th > 0 .and. NFP3DFT > 0) THEN
@@ -606,7 +700,10 @@ SUBROUTINE suxios_namfpc(YDGEOMETRY)
     DO i = 1, JPOS3PV
       RFP3PV(i) = 9999*1.E6_JPRB
     END DO
-    CALL xios_get_axis_attr(pv_axis_name, value=RFP3PV(1:n_glo_pv))
+    ALLOCATE(transfer_value_2d(1:n_glo_pv))
+    CALL xios_get_axis_attr(pv_axis_name, value=transfer_value_2d(1:n_glo_pv))
+    RFP3PV(1:n_glo_pv)=REAL(transfer_value_2d,KIND=JPRB)
+    DEALLOCATE(transfer_value_2d)
   END IF
 
   IF (n_glo_pv > 0 .and. NFP3DFV > 0) THEN
@@ -793,52 +890,13 @@ SUBROUTINE suxios_namfpc(YDGEOMETRY)
   END IF
 
   ! Ensuring we use 'MODEL' as the format of the output files
-  CFPFMT = 'MODEL'
 
-  ! Setting spectral fitting and other FullPos variables
-  IF (xios_getvar(nfitp_var_name, NFITP)) THEN
-    WRITE(NULOUT, '(''XIOSFPOS: NFITP IS'',I4)') NFITP
-  ELSE
-    WRITE(NULOUT, '(''XIOSFPOS: NFITP IS NOT DEFINED'')')
-  END IF
-  IF (xios_getvar(nfitt_var_name, NFITT)) THEN
-    WRITE(NULOUT, '(''XIOSFPOS: NFITT IS'',I4)') NFITT
-  ELSE
-    WRITE(NULOUT, '(''XIOSFPOS: NFITT IS NOT DEFINED'')')
-  END IF
-  IF (xios_getvar(nfitv_var_name, NFITV)) THEN
-    WRITE(NULOUT, '(''XIOSFPOS: NFITV IS'',I4)') NFITV
-  ELSE
-    WRITE(NULOUT, '(''XIOSFPOS: NFITV IS NOT DEFINED'')')
-  END IF
-  IF (xios_getvar(nfpcli_var_name, NFPCLI)) THEN
-    WRITE(NULOUT, '(''XIOSFPOS: NFPCLI IS'',I4)') NFPCLI
-  ELSE
-    WRITE(NULOUT, '(''XIOSFPOS: NFPCLI IS NOT DEFINED'')')
-  END IF
-  IF (xios_getvar(lfpq_var_name, LFPQ)) THEN
-    WRITE(NULOUT, '(''XIOSFPOS: LFPQ IS'',L2)') LFPQ
-  ELSE
-    WRITE(NULOUT, '(''XIOSFPOS: LFPQ IS NOT DEFINED'')')
-  END IF
-  IF (xios_getvar(ltracefp_var_name, LTRACEFP)) THEN
-    WRITE(NULOUT, '(''XIOSFPOS: LTRACEFP IS'',L2)') LTRACEFP
-  ELSE
-    WRITE(NULOUT, '(''XIOSFPOS: LTRACEFP IS NOT DEFINED'')')
-  END IF
-  IF (xios_getvar(rfpcorr_var_name, RFPCORR)) THEN
-    WRITE(NULOUT, '(''XIOSFPOS: RFPCORR IS'',F8.1)') RFPCORR
-  ELSE
-    WRITE(NULOUT, '(''XIOSFPOS: RFPCORR IS NOT DEFINED'')')
-  END IF
 
-  END ASSOCIATE
-  END ASSOCIATE
   END ASSOCIATE
 
   !$OMP END SINGLE
 
-END SUBROUTINE suxios_namfpc
+END SUBROUTINE suxios_namfpc_l
 
 SUBROUTINE suxios_namct0a
 
@@ -861,35 +919,34 @@ SUBROUTINE suxios_namct0a
 
 END SUBROUTINE suxios_namct0a
 
-SUBROUTINE suxios_namct0b
+SUBROUTINE suxios_namct0b(YDMODEL)
 
-  USE YOMRIP   , ONLY : TRIP
+  USE TYPE_MODEL, ONLY : MODEL
   USE YOMCT0, ONLY : NFRPOS, NFRHIS
-  !USE YOMARG, ONLY : UTSTEP, NSUPERSEDE
   USE YOMARG, ONLY : NSUPERSEDE
   ! XIOS_FPOS extra logging
   USE YOMLUN, ONLY : NULOUT
 
-  TYPE(TRIP) :: YDRIP
+  TYPE(MODEL), INTENT(IN) :: YDMODEL
 
   REAL(KIND=JPRB) :: ZUNIT
 
   !$OMP SINGLE
-  ASSOCIATE(UTSTEP => YDRIP%TSTEP)
+  ASSOCIATE (TSTEP => YDMODEL%YRML_GCONF%YRRIP%TSTEP)
 
   ! Setting FullPos output frequency
   ZUNIT=3600._JPRB
   IF (xios_getvar(nfrpos_var_name, NFRPOS)) THEN
-    IF ((NSUPERSEDE > 0).AND.(UTSTEP > 0.0_JPRB).AND.(NFRPOS < 0)) THEN
-      NFRPOS=NINT((REAL(-NFRPOS,JPRB)*ZUNIT)/UTSTEP)
+    IF ((NSUPERSEDE > 0).AND.(TSTEP > 0.0_JPRB).AND.(NFRPOS < 0)) THEN
+      NFRPOS=NINT((REAL(-NFRPOS,JPRB)*ZUNIT)/TSTEP)
     END IF
     WRITE(NULOUT, '(''XIOSFPOS: NFRPOS IS'',I4)') NFRPOS
   ELSE
     WRITE(NULOUT, '(''XIOSFPOS: NFRPOS IS NOT DEFINED'')')
   END IF
   IF (xios_getvar(nfrhis_var_name, NFRHIS)) THEN
-    IF ((NSUPERSEDE > 0).AND.(UTSTEP > 0.0_JPRB).AND.(NFRHIS < 0)) THEN
-      NFRHIS=NINT((REAL(-NFRHIS,JPRB)*ZUNIT)/UTSTEP)
+    IF ((NSUPERSEDE > 0).AND.(TSTEP > 0.0_JPRB).AND.(NFRHIS < 0)) THEN
+      NFRHIS=NINT((REAL(-NFRHIS,JPRB)*ZUNIT)/TSTEP)
     END IF
     WRITE(NULOUT, '(''XIOSFPOS: NFRHIS IS'',I4)') NFRHIS
   ELSE
