@@ -204,13 +204,13 @@ SAVE
  INTEGER(KIND=JPIM) :: NFRCPL
 
  !Logical switches for NEMO-LIM
- LOGICAL :: LNEMOLIMGET = .TRUE.   ! Get new fields
- LOGICAL :: LNEMOLIMPUT = .TRUE.   ! Put new fields
- LOGICAL :: LNEMOLIMALB = .FALSE.  ! Use albedo from LIM
- LOGICAL :: LNEMOLIMTEMP = .FALSE. ! Use ice temp from LIM
+ LOGICAL :: LNEMOLIMGET = .FALSE.   ! Get new fields
+ LOGICAL :: LNEMOLIMPUT = .FALSE.   ! Put new fields
+ LOGICAL :: LNEMOLIMALB = .TRUE.  ! Use albedo from LIM
+ LOGICAL :: LNEMOLIMTEMP = .TRUE. ! Use ice temp from LIM
  LOGICAL :: LNEMOLIMTLVL = .FALSE. ! Receive ice temp levels from LIM
  LOGICAL :: LNEMOLIMTHK = .FALSE.  ! Use ice and snow thickness
- LOGICAL :: LNEMOSICOUP = .FALSE.  ! Strongly couple LIM surface temperature
+ LOGICAL :: LNEMOSICOUP = .TRUE.  ! Strongly couple LIM surface temperature
  !
  LOGICAL :: LNEMOATMFLDS = .TRUE.  ! Pass additional atmospheric fields to nemo
  LOGICAL :: LNEMOOCEICEMIX = .FALSE. ! Use Mixture of ice and oce for qns and qs.
@@ -237,7 +237,7 @@ SAVE
 
 ! CPLNG data for coupling.
 TYPE(CPLNG_FLD_TYPE), ALLOCATABLE, DIMENSION(:) :: CPLNG_FLD
-LOGICAL :: CPLNG_ACTIVE = .FALSE.
+LOGICAL :: CPLNG_ACTIVE = .TRUE.
 INTEGER(KIND=JPIM) :: CPLNG_NUM_FIELDS = 0
 INTEGER(KIND=JPIM) :: IP_A_SST = -1
 INTEGER(KIND=JPIM) :: IP_A_ICE_FRAC = -1
