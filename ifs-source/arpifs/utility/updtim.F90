@@ -187,7 +187,8 @@ LOGICAL :: LLUPDECAEC
 #include "fcttrm.func.h"
 #include "updcal.intfb.h"
 
-#include "ece_updclie.intfb.h"
+#include "ece_updclie_cpl.intfb.h"
+#include "ece_updclie_climr.intfb.h"
 
 !     ------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('UPDTIM',0,ZHOOK_HANDLE)
@@ -877,12 +878,19 @@ IF(.NOT.LSCMEC) THEN
   ENDIF
 
 #ifdef WITH_OASIS
-  IF (ECE_CPL_AMIP .OR. ECE_CPL_NEMO_LIM) THEN
-      ! EC-Earth-type update of climate variables
-      CALL ECE_UPDCLIE(YDGEOMETRY,YDSURF,PTSTEP)
+  IF (LECEARTH) THEN
+    ! Update climate fields EC-Earth style
+    IF (ECE_CPL_AMIP .OR. ECE_CPL_NEMO_LIM) THEN
+      ! Update climate fields from coupler
+      CALL ECE_UPDCLIE_CPL(YDGEOMETRY,YDSURF,PTSTEP)
+    ELSE
+      CALL UPDCLIE_OASIS(YDGEOMETRY,YDSURF,YDMCC,YDRIP,YDERAD,YDDYNA,PTSTEP)
+    ENDIF
+    IF (ECE_CLIMR) THEN
+      ! Update climate fields from ICMCL file
+      CALL ECE_UPDCLIE_CLIMR(YDGEOMETRY,YDSURF)
+    ENDIF
   ELSE
-    CALL UPDCLIE_OASIS(YDGEOMETRY,YDSURF,YDMCC,YDRIP,YDERAD,YDDYNA,PTSTEP)
-  ENDIF
 #else
 
   IF (LMCCEC.AND.LDCLUPD) THEN
