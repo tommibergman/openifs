@@ -895,7 +895,7 @@ IF(.NOT.LSCMEC) THEN
     ENDIF
   ENDIF
 
-  IF (LECEARTH) THEN
+  IF (LECEARTH.AND.LDCLUPD) THEN
     ! Update climate fields EC-Earth style
     IF (ECE_CPL_AMIP .OR. ECE_CPL_NEMO_LIM .OR. ECE_CPL_FESOM_FESIM) THEN
       ! Update climate fields from coupler
