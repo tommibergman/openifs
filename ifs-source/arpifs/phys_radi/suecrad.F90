@@ -865,8 +865,6 @@ IF (LCMIP6) THEN
   NGHGRAD=16
   ! use prescribed ozone from CMIP6
   LEPO3RA=.TRUE.
-ELSE
-  NGHGRAD=21
 ENDIF
 
 NAER=1

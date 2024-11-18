@@ -1,4 +1,4 @@
-SUBROUTINE ECE_CMIP6_GHG(IYR, IMN, YDMODEL)
+SUBROUTINE ECE_CMIP6_GHG(IYR, IMN, YDERDI)
 
 !**** *ECE_CMIP6_GHG*
 
@@ -14,9 +14,9 @@ SUBROUTINE ECE_CMIP6_GHG(IYR, IMN, YDMODEL)
 
 !        Explicit arguments:
 !        -------------------
-!        IYR:     Year of current call
-!        IMN:     Month of current call
-!        YDMODEL: Datastructure containing solar incliniation angle RSOLINC
+!        IYR:    Year of current call
+!        IMN:    Month of current call
+!        YDERDI: Type with mass mixing ratios of trace gases
 
 !     METHOD.
 !     -------
@@ -35,24 +35,24 @@ SUBROUTINE ECE_CMIP6_GHG(IYR, IMN, YDMODEL)
 
 !     MODIFICATIONS.
 !     --------------
-!     J. Streffing 2024-01 Adapt to OpenIFS 48r1
+!     J. Streffing/P. Le Sager 2024 - Adapt to OpenIFS 48r1; more robust
 !     ------------------------------------------------------------------
 
   USE PARKIND1,      ONLY: JPIM, JPRB
   USE YOMLUN_IFSAUX, ONLY: NULOUT
   USE MPL_MODULE,    ONLY: MPL_BROADCAST
-  USE TYPE_MODEL,    ONLY: MODEL
+  USE YOERDI,        ONLY: TERDI
   USE ECE_CMIP6,     ONLY: CMIP6DATADIR, NCMIPFIXYR, NCMIPFIXYR_CH4, &
                        & SSPNAME, LA4xCO2, L1PCTCO2, LGHGMONTHLY
-
   USE NETCDF
 
   IMPLICIT NONE
 
   INTEGER(KIND=JPIM), INTENT(IN) :: IYR, IMN
+  TYPE(TERDI),     INTENT(INOUT) :: YDERDI ! Output gas concentrations
+
   INTEGER(KIND=JPIM) :: IYR1, IYR2, IMN0
-  INTEGER(KIND=JPIM), SAVE :: IYR2OLD, IMNOLD
-  TYPE(MODEL)       , INTENT(INOUT) :: YDMODEL
+  INTEGER(KIND=JPIM), SAVE :: IYR2OLD = 0_JPIM, IMNOLD = 0_JPIM
 
   REAL(KIND=JPRB) :: ZCO2RMWG, ZCH4RMWG, ZN2ORMWG, ZNO2RMWG, ZC11RMWG, ZC12RMWG
 
@@ -67,10 +67,9 @@ SUBROUTINE ECE_CMIP6_GHG(IYR, IMN, YDMODEL)
 
   LOGICAL, SAVE :: FIRST_CALL = .TRUE.
 
-  ASSOCIATE (YRERDI => YDMODEL%YRML_PHY_RAD%YRERDI)
-  ASSOCIATE (RCARDI => YRERDI%RCARDI, RCFC11 => YRERDI%RCFC11, &
-   & RCFC12 => YRERDI%RCFC12, RCH4 => YRERDI%RCH4, RN2O => YRERDI%RN2O, &
-   & RNO2 => YRERDI%RNO2)
+  ASSOCIATE (RCARDI => YDERDI%RCARDI, RCFC11 => YDERDI%RCFC11, &
+   & RCFC12 => YDERDI%RCFC12, RCH4 => YDERDI%RCH4, RN2O => YDERDI%RN2O, &
+   & RNO2 => YDERDI%RNO2)
 
 ! set constants
 
@@ -95,14 +94,26 @@ SUBROUTINE ECE_CMIP6_GHG(IYR, IMN, YDMODEL)
       IMN0 = IMN - 6
     END IF
 
-    IF (IMN .NE. IMNOLD) THEN
+    IF ((IMN .NE. IMNOLD).OR.(IYR2 .NE. IYR2OLD)) THEN ! Test on IYR2 in case we jump a full year between calls
+
+      WRITE (NULOUT, *) 'ECE_CMIP6_GHG:'
+      IF (NCMIPFIXYR <= 0) THEN
+        WRITE (NULOUT, FMT='('' IYR ='',I4,'' IMN ='',I4,'' IMN0 ='',I4 &
+             & ,'' IYR1='',I4,'' IYR2='',I4,'' IYR2OLD='',I4,'' IMNOLD='',I4)') &
+             & IYR, IMN, IMN0, IYR1, IYR2, IYR2OLD, IMNOLD
+      ELSE
+        WRITE (NULOUT, FMT='('' NCMIPFIXYR ='',I4,'' IMN ='',I4,'' IMN0 ='',I4 &
+             & ,'' LA4xCO2='',L4,'' L1pctCO2='',L4)') &
+             & NCMIPFIXYR, IMN, IMN0, LA4xCO2, L1pctCO2
+      END IF
+
       IF (LGHGMONTHLY) THEN
         CALL READCMIP6GHGDATA(IYR, IMN)
-      ELSE IF (IYR2 .NE. IYR2OLD) THEN
-        IF (FIRST_CALL) THEN
+      ELSE IF ((IYR2 .NE. IYR2OLD).OR.FIRST_CALL) THEN ! FIRST_CALL is needed for corner case: starting an experiment in the first 6 months of year 0000
+        IF (FIRST_CALL.OR.(IYR2OLD.NE.IYR1)) THEN      ! Test on IYR1 in case we jump more than one month between calls
           CALL READCMIP6GHGDATA(IYR1)
         END IF
-        CALL READCMIP6GHGDATA(IYR2)
+        CALL READCMIP6GHGDATA(IYR2) ! IYR2OLD pushed into IYR1
         IYR2OLD = IYR2
       END IF
       FIRST_CALL = .FALSE.
@@ -117,16 +128,6 @@ SUBROUTINE ECE_CMIP6_GHG(IYR, IMN, YDMODEL)
       END IF
       ZCONC(6) = ZFIXNO2
 
-      WRITE (NULOUT, *) 'ECE_CMIP6_GHG:'
-      IF (NCMIPFIXYR <= 0) THEN
-        WRITE (NULOUT, FMT='('' IYR ='',I4,'' IMN ='',I4,'' IMN0 ='',I4 &
-          & ,'' IYR1='',I4,'' IYR2='',I4)') &
-          & IYR, IMN, IMN0, IYR1, IYR2
-      ELSE
-        WRITE (NULOUT, FMT='('' NCMIPFIXYR ='',I4,'' IMN ='',I4,'' IMN0 ='',I4 &
-          & ,'' LA4xCO2='',L4,'' L1pctCO2='',L4)') &
-          & NCMIPFIXYR, IMN, IMN0, LA4xCO2, L1pctCO2
-      END IF
       DO JGAS = 1, 6
         WRITE (NULOUT, *) 'JGAS=', JGAS, ' ZCONC(JGAS)=', ZCONC(JGAS)
       END DO
@@ -141,7 +142,6 @@ SUBROUTINE ECE_CMIP6_GHG(IYR, IMN, YDMODEL)
       IMNOLD = IMN
     END IF
 
-  END ASSOCIATE
   END ASSOCIATE
 
   RETURN
