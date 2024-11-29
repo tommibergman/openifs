@@ -101,8 +101,8 @@ SUBROUTINE ECE_NEMO_SET_OCEAN_FLUXES(YDSURF, KDIM, SURFL, PSURF, FLUX)
     ! Pay attention to the signs from the various contributions!
     CPLNG2_FLD(CPLNG2_IDX('A_dQns_dT'))%D(IG:IG+IE,1,1) =               &
     &                   -4.00 * 0.95 * RSIGMA * ZTS3(IL:IL+IE)        &
-    &                   -1.22 * RCPD * 1.63e-3 * ZU10(IL:IL+IE)       &
-    &                   + RLSTT * 1.63e-3 * 11637800.                 &
+    &                   -1.22 * RCPD * 1.4e-3 * ZU10(IL:IL+IE)       &
+    &                   + RLSTT * 1.4e-3 * 11637800.                 &
     &                     * (-5897.8) * ZU10(IL:IL+IE)/ZTS2(IL:IL+IE) &
     &                     * EXP(-5897.8/PSURF%PTSKTI(IL:IL+IE,2))
 
