@@ -56,6 +56,7 @@ SUBROUTINE SUECOZV(YDECMIP,KINDAT)
 !     P. Bechtold         14/05/2012 replace 86400 by RDAY
 !     R. Senan/C. Roberts 26/01/2017 Support for CMIP6 forcings
 !     O. Marsden          30/01/2018 Split the update out from the setup, new UPDECOZV routine
+!     R. Senan            15/12/2021 CMIP6: Support for single precision
 !-----------------------------------------------------------------------
 
 USE PARKIND1 , ONLY : JPIM, JPRB, JPRD, JPIB
@@ -384,7 +385,11 @@ SUBROUTINE READ_NC_FILE_OZONE_CMIP6(CC,NLON1NC,NLAT1NC,NLV1NC,NMONTH1NC,ZOZCL)
   ISIZE  = (/NLON1NC,NLAT1NC,NLV1NC,1/)
   DO IMONTH1=1,NMONTH1NC
      ISTART = (/1,1,1,IMONTH1/)
-     CALL CHECK( NF_GET_VARA_DOUBLE(INCUNIT, OZO_VARID, ISTART, ISIZE, OZO_CMIP6) )
+     IF(JPRB==JPRD)THEN
+        CALL CHECK( NF_GET_VARA_DOUBLE(INCUNIT, OZO_VARID, ISTART, ISIZE, OZO_CMIP6) )
+     ELSE
+        CALL CHECK( NF_GET_VARA_REAL(INCUNIT, OZO_VARID, ISTART, ISIZE, OZO_CMIP6) )
+     ENDIF              
      ! Reverse vertical levels, convert from mole/mole to ppm and store in ZOZCL
      DO ILEV1= 1,NLV1NC
         ZOZCL(:,:,ILEV1,IMONTH1-1) = OZO_CMIP6(:,:,NLV1NC-ILEV1+1)*1.E+06_JPRB
