@@ -68,7 +68,9 @@ USE YOERAD   , ONLY : TERAD
 USE YOEPHY   , ONLY : TEPHY
 USE YOMMCC   , ONLY : TMCC
 
+#ifdef WITH_CPLNG2
 USE ECEARTH
+#endif
 
 !-----------------------------------------------------------------------
 
@@ -101,9 +103,14 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 #include "updcal.intfb.h"
 #include "surfrad.h"
 #include "icestatenemo.intfb.h"
+#include "fcttim.func.h"
+
+#ifdef WITH_CPLNG2
+
 #include "ece_si3_get_ice_state.intfb.h"
 #include "ece_fesim_get_ice_state.intfb.h"
-#include "fcttim.func.h"
+
+#endif
 
 !     ------------------------------------------------------------------
 
@@ -132,15 +139,17 @@ ISEC=MOD(NSSSSS+NINT(RSTATI, JPIB),NINT(RDAY))
 CALL UPDCAL(ID0,IM0,IY0,IDINCR,IDD,IMM,IYY,ILMON,-1)
 ZALBICE(KDIM%KIDIA:KDIM%KFDIA) = 0.0_JPRB
 IF (LNEMOLIMALB) THEN
+#ifdef WITH_CPLNG2
   IF (ECE_CPL_NEMO_LIM) THEN
     CALL ECE_SI3_GET_ICE_STATE(KDIM%KSTGLO,KDIM%KIDIA,KDIM%KFDIA,    &
     &                      ICE_ALBEDO=ZALBICE(KDIM%KIDIA:KDIM%KFDIA) )
   ELSEIF (ECE_CPL_FESOM_FESIM) THEN
     CALL ECE_FESIM_GET_ICE_STATE(KDIM%KSTGLO,KDIM%KIDIA,KDIM%KFDIA,  &
     &                      ICE_ALBEDO=ZALBICE(KDIM%KIDIA:KDIM%KFDIA) )
-  ELSE
-    CALL ICESTATENEMO(YDMCC,KDIM%KSTGLO,KDIM%KIDIA,KDIM%KFDIA,PALBICE=ZALBICE(KDIM%KIDIA:KDIM%KFDIA))
   ENDIF
+#else
+  CALL ICESTATENEMO(YDMCC,KDIM%KSTGLO,KDIM%KIDIA,KDIM%KFDIA,PALBICE=ZALBICE(KDIM%KIDIA:KDIM%KFDIA))
+#endif
 ENDIF
 
 ! Two longwave emissivity intervals are requested below (outside and

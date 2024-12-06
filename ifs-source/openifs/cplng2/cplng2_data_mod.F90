@@ -107,7 +107,9 @@ CONTAINS
         USE YOMCT0, ONLY: LXIOS
 
         USE MOD_OASIS
+#ifdef WITH_XIOS
         USE XIOS
+#endif
 
         ! arguments
         TYPE(GEOMETRY), INTENT(IN) :: YDGEOMETRY
@@ -304,9 +306,9 @@ CONTAINS
             ! -------------------------------------------------------------------------
             ! * FINALISE OASIS DEFINITION PHASE
             ! -------------------------------------------------------------------------
-            IF (LXIOS) THEN
-                CALL xios_oasis_enddef()
-            END IF
+#ifdef WITH_XIOS
+            CALL xios_oasis_enddef()
+#endif
             CALL OASIS_ENDDEF(error)
             IF (error /= OASIS_OK) THEN
                 WRITE (err_str, '(I3)') error

@@ -164,8 +164,10 @@ USE YOMXIOS, ONLY: LOPT_SEND
 USE CXIOS, ONLY : IFS_XIOS_CALENDAR
 #endif
 
+#ifdef WITH_CPLNG2
 USE ECEARTH
 USE CPLNG2
+#endif
 
 !      ----------------------------------------------------------------
 
@@ -1319,8 +1321,10 @@ DO
      & YDMODEL%YRML_PHY_RAD%YRERAD,YDDYNA,CPL_STAGE_OCE_SND)
 #endif
 
+#ifdef WITH_CPLNG2
   !*           Coupling to Ocean - EC-Earth style
   IF (ECE_CPL_NEMO_LIM .OR. ECE_CPL_FESOM_FESIM) CALL CPLNG2_EXCHANGE(INT(TSTEP,KIND=JPIM),ECE_CPL_STAGE_OCE_SND,YDDYNA,YDRIP)
+#endif
 
   !*     3.21  Write animation file (ISP)
 

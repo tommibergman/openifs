@@ -98,7 +98,9 @@ USE YOMSATSIM,    ONLY : NSATSIM
 USE SUXIOS,    ONLY : SUXIOS_INI_CTXT, SUXIOS_NAMCT0B, SUXIOS_CTXT
 #endif
 
+#ifdef WITH_CPLNG2
 USE ECEARTH
+#endif
 
 !     ------------------------------------------------------------------
 
@@ -157,12 +159,13 @@ CALL GSTATS(1934,0)
 WRITE(NULOUT,*) '------ Set up model geometry  ------',CLINE
 CALL SUGEOMETRY(YDGEOMETRY)
 
+#ifdef WITH_CPLNG2
 CALL ECE_CONFIG(YDGEOMETRY, YDMODEL)
+#endif
 
 !     ------------------------------------------------------------------
 !*       4. "MODEL" PART SET-UP.
 !           --------------------
-#ifdef WITH_XIOS
 !*    Initialize I/O-scheme
 WRITE(NULOUT,*) '---- Set up I/O scheme --------------',CLINE
 CALL SUIOS
@@ -175,6 +178,7 @@ CALL SUDYNA(YDGEOMETRY%YRDIM,YDMODEL%YRML_DYN%YRDYNA,YDGEOMETRY%YRCVER%LVERTFE, 
 WRITE(NULOUT,*) '------ Set up YOMRIP variables ',CLINE
 CALL SURIP(YDGEOMETRY%YRDIM,YDMODEL%YRML_DYN%YRDYNA,YDMODEL%YRML_GCONF%YRRIP)
 
+#ifdef WITH_XIOS
 IF (LXIOS) THEN
   !*    Initialize XIOS context definition
   WRITE(NULOUT,*) '------ Initialize XIOS context definition -----',CLINE

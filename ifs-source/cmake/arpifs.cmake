@@ -170,6 +170,18 @@ if ( ENABLE_CPLNG2 )
     arpifs.${PREC}
     PRIVATE ${OASIS_INCLUDE_DIRECTORIES}
   )
+else()
+  message("--> Building arpifs without CPLNG2/OASIS support")
+  target_sources(
+    arpifs.${PREC}
+    PRIVATE
+      openifs/dummy_cplng2/cplng2_mod.F90
+      openifs/dummy_cplng2/cplng2_types_mod.F90
+      openifs/dummy_cplng2/cplng2_data_mod.F90
+      openifs/dummy_cplng2/cplng2_init_mod.F90
+      openifs/dummy_cplng2/cplng2_exchange_mod.F90
+      openifs/dummy_cplng2/cplng2_finalize_mod.F90
+  )
 endif()
 
 if( HAVE_MGRIDS )

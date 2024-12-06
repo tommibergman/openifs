@@ -1,4 +1,7 @@
 SUBROUTINE ECE_FESIM_GET_ICE_STATE(KSTGLO,KIDIA,KFDIA,SNOW_THICKNESS,ICE_ALBEDO)
+
+#ifdef WITH_CPLNG2
+
     !
     ! Called from callpar.F90 when the radiation scheme needs the ice state
     ! Ice fraction, sst, and ice temp have already been updated by awi_updclie.
@@ -41,5 +44,7 @@ SUBROUTINE ECE_FESIM_GET_ICE_STATE(KSTGLO,KIDIA,KFDIA,SNOW_THICKNESS,ICE_ALBEDO)
     IF(PRESENT(ICE_ALBEDO)) ICE_ALBEDO(:) = CPLNG2_FLD(CPLNG2_IDX('A_Ice_albedo'))%D(IG:IG+IE,1,1)
 
     IF (LHOOK) CALL DR_HOOK('ECE_FESIM_GET_ICE_STATE',1,ZHOOK_HANDLE)
+
+#endif
 
 END SUBROUTINE ECE_FESIM_GET_ICE_STATE

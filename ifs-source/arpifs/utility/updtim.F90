@@ -192,8 +192,12 @@ LOGICAL :: LLUPDECAEC
 #include "fcttrm.func.h"
 #include "updcal.intfb.h"
 
+#ifdef WITH_CPLNG2
+
 #include "ece_updclie_cpl.intfb.h"
 #include "ece_updclie_climr.intfb.h"
+
+#endif
 
 !     ------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('UPDTIM',0,ZHOOK_HANDLE)
@@ -895,6 +899,7 @@ IF(.NOT.LSCMEC) THEN
     ENDIF
   ENDIF
 
+#ifdef WITH_CPLNG2
   IF (LECEARTH.AND.LDCLUPD) THEN
     ! Update climate fields EC-Earth style
     IF (ECE_CPL_AMIP .OR. ECE_CPL_NEMO_LIM .OR. ECE_CPL_FESOM_FESIM) THEN
@@ -908,6 +913,7 @@ IF(.NOT.LSCMEC) THEN
       CALL ECE_UPDCLIE_CLIMR(YDGEOMETRY,YDSURF,YDMODEL)
     ENDIF
   ENDIF
+#endif
 
   IF (LMCCEC.AND.LDCLUPD) THEN
 
