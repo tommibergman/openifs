@@ -49,6 +49,8 @@ SUBROUTINE ECE_UPDCLIE_CPL(YDGEOMETRY, YDSURF, YDMCC, YDDYNA, YDRIP, PTSTEP)
     &         LNEMOLIMTEMP => YDMCC%LNEMOLIMTEMP, &
     &         SP_SB => YDSURF%SP_SB, &
     &         YSP_SB => YDSURF%YSP_SB, &
+    &         SP_SL => YDSURF%SP_SL, &
+    &         YSP_SL => YDSURF%YSP_SL, &
     &         SP_RR => YDSURF%SP_RR, &
     &         YSP_RR => YDSURF%YSP_RR, &
     &         SD_VF => YDSURF%SD_VF, &
@@ -137,6 +139,12 @@ SUBROUTINE ECE_UPDCLIE_CPL(YDGEOMETRY, YDSURF, YDMCC, YDDYNA, YDRIP, PTSTEP)
           & ( SD_VF(JROF,YSD_VF%YCI%MP,IBL)*SP_SB(JROF,1,YSP_SB%YTL%MP,IBL)**4 &
           & + (1.-SD_VF(JROF,YSD_VF%YCI%MP,IBL))*SD_VF(JROF,YSD_VF%YSST%MP,IBL)**4 &
           & )**.25
+
+        ELSE
+          ! set SST as lake mixed layer temperature over non-ocean gridpoints
+          ! this is ncessary because the open water fraction of lakes is represented
+          ! by tile 1 in src/surf/module/surfbc_ctl_mod.F90
+          SD_VF(JROF,YSD_VF%YSST%MP,IBL) = SP_SL(JROF,YSP_SL%YLMLT%MP,IBL)
 
         ENDIF ! LSM <= 0.5_JPRB
       ENDDO ! JROF = 1,IEND
