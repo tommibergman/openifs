@@ -1,0 +1,36 @@
+[submodule "external/ecbuild"]
+	path = external/ecbuild
+	url = https://github.com/ecmwf/ecbuild
+	shallow = true
+[submodule "external/eccodes"]
+	path = external/eccodes
+	url = https://github.com/ecmwf/eccodes
+	shallow = true
+[submodule "external/eckit"]
+	path = external/eckit
+	url = https://github.com/ecmwf/eckit
+	shallow = true
+[submodule "external/fckit"]
+	path = external/fckit
+	url = https://github.com/ecmwf/fckit
+	shallow = true
+[submodule "external/metkit"]
+	path = external/metkit
+	url = https://github.com/ecmwf/metkit
+	shallow = true
+[submodule "external/fdb"]
+	path = external/fdb
+	url = https://github.com/ecmwf/fdb
+	shallow = true
+[submodule "external/atlas"]
+	path = external/atlas
+	url = https://github.com/ecmwf/atlas
+	shallow = true
+[submodule "external/multio"]
+	path = external/multio
+	url = https://github.com/ecmwf/multio
+	shallow = true
+[submodule "external/fcm"]
+	path = external/fcm
+	url = https://github.com/metomi/fcm
+	shallow = true
