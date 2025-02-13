@@ -96,7 +96,7 @@ cmake   : >
       bundle: false
 
   - xios:
-      dir: $PWD/../xios-2.5+
+      dir: $PWD/../xios-2.5+/build_ecearth
       bundle: false
 
   - openifs:
