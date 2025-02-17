@@ -420,6 +420,8 @@ contains
       integer(kind=JPIM) :: gc66, gc67, gc15, gc16, gc17, gc18, gc174  ! Indices for fields with respective GRIB codes
       integer(kind=JPIM) :: nn  ! Index for next time level (1 or 2)
       real(kind=JPRB) :: zn  ! Interpolation weight for next time level
+      
+      character(len=48) :: msg
 
       associate ( &
          NGPTOT => YDGEOMETRY%YRGEM%NGPTOT, &
@@ -454,7 +456,7 @@ contains
                   + zn*CLIMR(jstglo + jrof - 1, nn, gc174)
 
                ! MODIS albedo, grib parameters 15, 16, 17, 18
-               if (NALBEDOSCHEME==1) then
+               if (NALBEDOSCHEME==1 .OR. NALBEDOSCHEME==3 ) then
                   SD_VF(jrof, YSD_VF%YALUVP%MP, ibl) = &
                      zp*CLIMR(jstglo + jrof - 1, np, gc15) &
                      + zn*CLIMR(jstglo + jrof - 1, nn, gc15)
@@ -467,6 +469,10 @@ contains
                   SD_VF(jrof, YSD_VF%YALNID%MP, ibl) = &
                      zp*CLIMR(jstglo + jrof - 1, np, gc18) &
                      + zn*CLIMR(jstglo + jrof - 1, nn, gc18)
+               else
+                  WRITE(msg,'("NALBEDOSCHEME ",I0, &
+                              " not implemented for ECE4")') NALBEDOSCHEME
+                  CALL ABOR1('ece_udclie_climr: '//TRIM(msg))
                end if
 
                ! LAI low/high, grib parameters 66, 67
