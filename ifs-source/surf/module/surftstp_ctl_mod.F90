@@ -7,7 +7,7 @@
 ! nor does it submit to any jurisdiction
 MODULE SURFTSTP_CTL_MOD
 
-USE SURFECE, ONLY: ECE_CPL_AMIP
+USE SURFECE, ONLY: ECE_CPL_NEMO_LIM 
 
 CONTAINS
 SUBROUTINE SURFTSTP_CTL(KIDIA , KFDIA , KLON  , KLEVS , KTILES,&
@@ -681,15 +681,27 @@ DO JL=KIDIA,KFDIA
     ELSE
       ! try to keep water balance by removing snow mass > 10000 as calving - runoff
       ! this only applies to the single layer
-      IF ( .NOT. LESNML ) THEN
-        ZRSN(JL,KLMAX)=RHOMAXSN
-        ZROFS(JL) = MAX(0._JPRB,ZSN(JL,KLMAX)-SUM(PSNM1M(JL,:)))*ZTSPHY
-        ZSN(JL,KLMAX)=10000.0_JPRB
-      ENDIF
-       ! EC-EARTH: CAP ZSN IN ATMOS-ONLY EXPERIMENTS, FOR CPLD EXPERIMENTS
-       !           THIS IS TAKEN CARE OF IN ece_nemo_set_ocean_fluxes.F90
-      IF (ECE_CPL_AMIP) THEN 
-        ZSN(JL,KLMAX) = 10000.0_JPRB !reset to glaciers value of 10000 kg/m2 (SWE=10m)
+      IF ( .NOT. LESNML) THEN
+        ! EC-EARTH: CAP ZSN IN ATMOS-ONLY EXPERIMENTS, FOR CPLD EXPERIMENTS
+        !           THIS IS TAKEN CARE OF IN ece_nemo_set_ocean_fluxes.F90
+        IF ( .NOT. ECE_CPL_NEMO_LIM) THEN
+          ZRSN(JL,KLMAX)=RHOMAXSN
+          ZROFS(JL) = MAX(0._JPRB,ZSN(JL,KLMAX)-PSNM1M(JL,KLMAX))*ZTSPHY
+          ZSN(JL,KLMAX)=10000.0_JPRB
+        ENDIF 
+      ELSE
+        ! EC-EARTH: CAP ZSN IN ATMOS-ONLY EXPERIMENTS, FOR CPLD EXPERIMENTS
+        !           THIS IS TAKEN CARE OF IN ece_nemo_set_ocean_fluxes.F90
+        IF ( .NOT. ECE_CPL_NEMO_LIM) THEN
+          ZRSN(JL,1:KLEVSN) =RHOMAXSN
+          ZROFS(JL) = MAX(0._JPRB,ZSN(JL,KLMAX)-SUM(PSNM1M(JL,:)))*ZTSPHY
+          ZWSN(JL,1:KLEVSN) = 0._JPRB
+          IF (KLMAX /= KLEVSN) THEN
+            ZSN(JL,KLMAX)  = 10000.0_JPRB - SUM(ZSN(JL,1:KLMAX-1)) - SUM(ZSN(JL,KLMAX+1:KLEVSN))  !reset to glaciers value of 10000 kg/m2 (SWE=10m)
+          ELSE
+            ZSN(JL,KLMAX)  = 10000.0_JPRB - SUM(ZSN(JL,1:KLMAX-1))                        !reset to glaciers value of 10000 kg/m2 (SWE=10m)
+          ENDIF        
+        ENDIF
       ENDIF
     ENDIF
   ENDIF

@@ -40,6 +40,8 @@ MODULE SURFECE
 
     LOGICAL :: ECE_CLIMR = .FALSE.
 
+    PUBLIC SURFECE_CONFIG
+
 CONTAINS
 
 ! =============================================================================

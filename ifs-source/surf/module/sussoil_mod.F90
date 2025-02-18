@@ -634,7 +634,12 @@ YDSOIL%LEWBCHECK=.FALSE.
 YDSOIL%LEWBCHECKAbort=.FALSE.
 YDSOIL%LESNCHECK=.FALSE.
 YDSOIL%LESNCHECKAbort=.FALSE.
-YDSOIL%LESNWBCON=.FALSE.
+! EC-Earth: Do not cap snow depth at 10m in surf/module/surftstp_ctl_mod.F90  
+! We do this in arpifs/ecearth/couple_nemo_si3/ece_nemo_set_ocean_fluxes.F90 
+! and send the excess snow to the coupler.
+! Note: The cap will still be active if only one snow layer, LESNML=F, 
+! or if AMIP mode, ECE_CPL_AMIP=T 
+YDSOIL%LESNWBCON=.TRUE. 
 
 ! To be better re-evaluated...
 !!! default when snow multi-layer is active
