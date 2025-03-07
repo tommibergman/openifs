@@ -469,8 +469,9 @@ ELSE
   ZW2=1.-ZW1
 ENDIF
 
-IF (.NOT.ECE_CPL_NEMO_LIM) THEN
-  ! Compute scaling for sea-ice albedo, unless EC-Earth coupling to NEMO is
+IF (.NOT.ECE_CPL_NEMO_LIM .AND. .NOT.ECE_CPL_FESOM_FESIM) THEN
+  ! Compute scaling for sea-ice albedo, unless EC-Earth coupling to NEMO 
+  ! or AWI-CM coupling to FESOM is
   ! used. In the latter case, spectral scaling is done later with
   ! weights defined in YDSW%ICE_ALB_SPEC_WEIGHT.
   ZALBSCALE_AR=1._JPRB
@@ -584,7 +585,7 @@ DO JSW=1,KSW
 !    ZAPTI1=0.08_JPRB    ! DEBUGGING PURPOSES ONLY
     
 ! SEA-ICE
-    IF (ECE_CPL_NEMO_LIM) THEN
+    IF (ECE_CPL_NEMO_LIM .OR.ECE_CPL_FESOM_FESIM) THEN
       ! EC-Earth-style scaling with spectral weights
       ZADTI2 = PALBICEF(JL)*ICE_ALB_SPEC_WEIGHT(JSW)
       ZAPTI2 = ZADTI2
