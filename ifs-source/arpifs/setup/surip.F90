@@ -57,7 +57,7 @@ SUBROUTINE SURIP(YDDIM,YDDYNA,YDRIP,PTSTEP)
 !     ------------------------------------------------------------------
 
 USE YOMDIM   , ONLY : TDIM
-USE PARKIND1 , ONLY : JPIM     ,JPRB
+USE PARKIND1 , ONLY : JPIM     ,JPRB, JPIB
 USE YOMHOOK  , ONLY : LHOOK    ,DR_HOOK, JPHOOK
 USE YOMLUN   , ONLY : NULNAM, NULOUT, NULERR
 USE YOMCT0   , ONLY : NCONF, L4DVAR
@@ -83,6 +83,7 @@ INTEGER(KIND=JPIM), POINTER :: NSTOP
 INTEGER(KIND=JPIM), POINTER :: NFOST
 CHARACTER(LEN=8),   POINTER :: CSTOP
 INTEGER(KIND=JPIM) :: ISECSPERDAY = 3600*24, ISECSPERHOUR = 3600
+INTEGER(KIND=JPIB) :: ISTEPSPERDAY 
 
 #include "namrip.nam.h"
 
@@ -152,9 +153,15 @@ IF (CSTOP /= '-9') THEN
     IF(TSTEP > 0.0_JPRB) THEN
       READ(UNIT=CSTOP(2:),FMT='(I7)') NSTOP
       IF(CSTOP(1:1) == 'h') THEN
-        NSTOP=NINT(NSTOP*ISECSPERHOUR/TSTEP)
+        !NSTOP=NINT(NSTOP*ISECSPERHOUR/TSTEP) overflows after 67 years
+        !if computed in single precision
+        NSTOP=NSTOP*INT(INT(ISECSPERHOUR/TSTEP,KIND=JPIB),KIND=JPIM)
       ELSEIF(CSTOP(1:1) == 'd') THEN
-        NSTOP=NINT(NSTOP*ISECSPERDAY/TSTEP)
+        !NSTOP=NINT(NSTOP*ISECSPERDAY/TSTEP) overflows after 67 years
+        !if computed in single precision. 
+        !Switch to double precision below
+        ISTEPSPERDAY=INT(ISECSPERDAY/TSTEP,KIND=JPIB)
+        NSTOP=NSTOP*INT(ISTEPSPERDAY,KIND=JPIM)
       ELSE
         WRITE(NULOUT,*) ' WRONG FORMAT FOR THE FORECAST'
         WRITE(NULOUT,*) ' SPAN.'
@@ -171,6 +178,11 @@ IF (CSTOP /= '-9') THEN
       WRITE(NULOUT,*) '  YOU HAVE TO SUPPLY THE VALUE'
       WRITE(NULOUT,*) '  OF THE TIME STEP WITH -t ...'
     ENDIF
+  ENDIF
+  ! Add check of NSTOP here in case of overflow 
+  IF (NSTOP < 0) THEN
+    PRINT*,'NSTOP = ',NSTOP 
+    PRINT*,'NSTOP < 0 makes no sense for EC-Earth ' 
   ENDIF
 ENDIF
 

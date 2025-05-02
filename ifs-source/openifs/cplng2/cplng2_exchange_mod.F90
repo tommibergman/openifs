@@ -10,7 +10,7 @@ CONTAINS
 
 SUBROUTINE CPLNG2_EXCHANGE(TSTEP,KSTAGE,YDDYNA,YDRIP)
 
-    USE PARKIND1, ONLY: JPIM, JPRB
+    USE PARKIND1, ONLY: JPIM, JPRB, JPIB
     USE YOMCT2,   ONLY: NSTAR2,NSTOP2
     USE YOERAD,   ONLY: YRERAD
     USE YOMRIP,   ONLY: TRIP
@@ -72,9 +72,11 @@ SUBROUTINE CPLNG2_EXCHANGE(TSTEP,KSTAGE,YDDYNA,YDRIP)
     !
     IF (LTWOTL) THEN
         ! Return if time is beyond last step
-        IF (RSTATI>TSTEP*NSTOP2) RETURN
+        ! This has to be computed in double precision to avoid 
+        ! overflowing after 68 years
+        IF (RSTATI > INT(TSTEP, KIND=JPIB)*INT(NSTOP2, KIND=JPIB)) RETURN
         ! Compute time at start of current step
-        ITIME_IN_SECONDS = NINT(RSTATI - NSTAR2*TSTEP - 0.5_JPRB*TSTEP,JPIM)
+        ITIME_IN_SECONDS = NINT(RSTATI - INT(NSTAR2,KIND=JPIB)*INT(TSTEP,KIND=JPIB) - 0.5_JPRB*TSTEP,JPIM)
     ELSE
         CALL ABOR1("CPLNG2_EXCHANGE: Can't handle LTWOTL==.FALSE. yet.")
     ENDIF
@@ -92,8 +94,6 @@ SUBROUTINE CPLNG2_EXCHANGE(TSTEP,KSTAGE,YDDYNA,YDRIP)
 
             DO ICAT=1,CPLNG2_FLD(II)%NUM_CAT
                 DO ILVL=1,CPLNG2_FLD(II)%NUM_LVL
-                    !WRITE(*,*) "CPLNG2_EXCHANGE_MOD: OASIS_PUT: II, NAME ",II,CPLNG2_FLD(II)%NAME, &
-                    !& CPLNG2_FLD(II)%ID(ILVL,ICAT)
                     CALL OASIS_PUT(CPLNG2_FLD(II)%ID(ILVL,ICAT),  &
                     &              ITIME_IN_SECONDS,             &
                     &              CPLNG2_FLD(II)%D(:,ILVL,ICAT), &
@@ -125,13 +125,10 @@ SUBROUTINE CPLNG2_EXCHANGE(TSTEP,KSTAGE,YDDYNA,YDRIP)
 
             DO ICAT=1,CPLNG2_FLD(II)%NUM_CAT
                 DO ILVL=1,CPLNG2_FLD(II)%NUM_LVL
-                    !WRITE(*,*) "CPLNG2_EXCHANGE_MOD: OASIS_GET NAME, time: ",II,CPLNG2_FLD(II)%NAME, &
-                    !            & CPLNG2_FLD(II)%ID(ILVL,ICAT), ITIME_IN_SECONDS
                     CALL OASIS_GET(CPLNG2_FLD(II)%ID(ILVL,ICAT),  &
                     &              ITIME_IN_SECONDS,             &
                     &              CPLNG2_FLD(II)%D(:,ILVL,ICAT), &
                     &              KINFO)
-
                     SELECT CASE (KINFO)
 
                     CASE (OASIS_Recvd,       &
