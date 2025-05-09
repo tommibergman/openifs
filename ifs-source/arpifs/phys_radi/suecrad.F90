@@ -156,7 +156,7 @@ USE YOMSOLARIRRADIANCE, ONLY :YSOLARIRRADIANCE ! Total solar irradiance multi-an
 USE YOERADGHG         , ONLY : YRADGHG  ! Climatology interpolated to current model time
 USE RADIATION_SETUP   , ONLY : SETUP_RADIATION_SCHEME
 
-USE ECE_CMIP6, ONLY : SETUP_ECE_CMIP6, LCMIP6
+USE ECE_CMIP, ONLY : SETUP_ECE_CMIP, LCMIP6, LCMIP7
 
 !-------------------------------------------------------------------------------
 
@@ -515,7 +515,7 @@ ENDIF
 IDUM=0
 
 ! is this an EC-Earth run with CMIP6 forcing?
-CALL SETUP_ECE_CMIP6
+CALL SETUP_ECE_CMIP
 
 !*         2.1      PRESET INDICES IN *YOERAD*
 !                   --------------------------
@@ -859,7 +859,7 @@ NPERTOZ=0
 ! consistent with LEPO3RA lower down in this file.
 NGHGRAD=-1
 !- 3D climatologies for CO2, CH4, N2O for radiation
-IF (LCMIP6) THEN
+IF (LCMIP6.OR.LCMIP7) THEN
   ! use only CO2+CH4+N2O+CFC11+CFC12 from CMIP6
   ! default setting can be overwritten in namelist NAERAD
   NGHGRAD=16

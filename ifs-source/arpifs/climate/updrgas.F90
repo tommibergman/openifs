@@ -55,7 +55,7 @@ USE YOERAD   , ONLY : TERAD
 USE YOERDI   , ONLY : TERDI
 USE YOMGHGTIMESERIES,ONLY   : YGHGTIMESERIES   ! GHG multi-annual timeseries
 USE YOMSOLARIRRADIANCE,ONLY : YSOLARIRRADIANCE ! TSI multi-annual timeseries
-USE ECE_CMIP6, ONLY : LCMIP6
+USE ECE_CMIP,  ONLY : LCMIP6, LCMIP7
 
 !     ------------------------------------------------------------------
 
@@ -79,8 +79,8 @@ INTEGER(KIND=JPIM) :: IYR, IMN, IYM
 
 !     ------------------------------------------------------------------
 
-#include "ece_cmip6_ghg.intfb.h"
-#include "ece_cmip6_solar.intfb.h"
+#include "ece_cmip_ghg.intfb.h"
+#include "ece_cmip_solar.intfb.h"
 
 !     ------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('UPDRGAS',0,ZHOOK_HANDLE)
@@ -94,7 +94,7 @@ ASSOCIATE(NHINCSOL=>YDERAD%NHINCSOL, NSCEN=>YDERAD%NSCEN, &
 
 !*         1+2   EC-EARTH READER
 !                ---------------
-IF (LCMIP6) THEN
+IF (LCMIP6.OR.LCMIP7) THEN
 
   ! Get YYYYMM
   IYM = GET_YYYYMM(YDRIP)
@@ -105,19 +105,19 @@ IF (LCMIP6) THEN
        & IYR, '/', IMN
   
   ! Update GHG concentrations and solar forcing from ECEARTH CMIP6 routine
-  CALL ECE_CMIP6_GHG(IYR,IMN,YDERDI)
+  CALL ECE_CMIP_GHG(IYR,IMN,YDERDI)
   ! HCFC22 & CCL4 are set to zero because CFC11 is scaled to account
   ! for all other minor GHGs in CMIP6
   RHCFC22 = 0.0_JPRB
   RCCL4   = 0.0_JPRB
   
   ! Do NOT output values (constant during the month, and written out
-  ! in ECE_CMIP6_GHG when updated). May become relevant if we interpolate (daily)
+  ! in ECE_CMIP_GHG when updated). May become relevant if we interpolate (daily)
   !
   !  WRITE(NULOUT,*)"UPDRGAS (mmr)- RCARDI,RCH4,RN2O,RCFC11,RCFC12,RNO2: "&
   !       &        , RCARDI,RCH4,RN2O,RCFC11,RCFC12,RNO2
   
-  CALL ECE_CMIP6_SOLAR(IYR,IMN,YDERDI)  ! reads monthly values
+  CALL ECE_CMIP_SOLAR(IYR,IMN,YDERDI)  ! reads monthly values
   WRITE(NULOUT,'(a,f0.3,a)') 'UPDRGAS:   Total Solar Irradiance: ', RSOLINC, ' W m-2'
   
 ELSE

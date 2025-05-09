@@ -172,7 +172,7 @@ USE YOMCT0       , ONLY : NUNDEFLD
 USE YOMCT3       , ONLY : NSTEP
 USE YOMMP0       , ONLY : NPROC, NPRTRV, MYSETV, MYPROC, LSLDEBUG
 USE YOESRTAER    , ONLY : RSRTAUA
-USE ECE_CMIP6    , ONLY : LCMIP6
+USE ECE_CMIP     , ONLY : LCMIP6, LCMIP7
 
 !   -------------------------------------------------------------------
 
@@ -1334,7 +1334,7 @@ DO JSTGLO=1,RADGRID%NGPTOT,NRPROMA
 
         IF (NOZOCL == 1.AND..NOT.LEPO3RA.AND..NOT.LPHYLIN) THEN
           IF (YDRIP%YRECMIP%NO3CMIP /= 0) THEN
-            IF (LCMIP6) THEN
+            IF (LCMIP6.OR.LCMIP7) THEN
               CALL ECE_RADOZV_CMIP6 ( I1, I2, NRPROMA, KLEV,&
                & 1 , NRPROMA , I1-1,&
                & ZRGP(1,IAPRS,IB) , ZRGP(1,IGELAM,IB) , ZRGP(1,IGEMU,IB),&
