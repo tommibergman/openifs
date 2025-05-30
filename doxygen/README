@@ -1,0 +1,21 @@
+The derived type paradigm sometimes requires changes to the API of encapsulated modules.
+Doxygen and Graphviz can help to visualize the call tree so that the required alterations can
+be made.
+
+The easiest way to install Doxygen and Graphviz is via Conda/Mamba.
+
+conda create --name=doxygen
+conda activate doxygen
+conda install conda-forge::doxygen
+conda install anaconda::graphviz
+
+You should then be able to run the following command to generate the Doxygen HTMLs:
+
+doxygen doxygen.config
+
+If run on and HPC system, it is recommended to tar and download the HTML folder to your local machine, as the many
+small files are usually slow to load when opening the folder directly the HPC.
+
+To view the results, open:
+
+html/index.html

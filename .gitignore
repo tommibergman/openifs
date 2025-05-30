@@ -22,3 +22,4 @@ __pycache__/
 
 # User-specific Docker config
 scripts/docker/config/my_config.yml
+/doxygen/html/
