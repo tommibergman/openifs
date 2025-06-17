@@ -44,6 +44,7 @@ SUBROUTINE ECE_CMIP_GHG(IYR, IMN, YDERDI)
   USE YOERDI,        ONLY: TERDI
   USE ECE_CMIP,      ONLY: CMIP6DATADIR, CMIP7DATADIR, NCMIPFIXYR, NCMIPFIXYR_CH4, &
                        & SCENARIONAME, LA4xCO2, L1PCTCO2, LGHGMONTHLY, LCMIP6, LCMIP7
+  USE YOEMETH,       ONLY : RQLIM
   USE NETCDF
 
   IMPLICIT NONE
@@ -64,6 +65,20 @@ SUBROUTINE ECE_CMIP_GHG(IYR, IMN, YDERDI)
   REAL(KIND=JPRB), PARAMETER :: RCO2INC = 0.01_JPRB
 ! co2 level of co2 the Abrupt4xCO2 experiment
   REAL(KIND=JPRB), PARAMETER :: R4xCO2 = 4.0_JPRB
+
+  ! Reference value of the global mean volume mixing ratio of CH4 at the surface,
+  ! used in the parameterization of the water vapour production from methane oxidation in the stratosphere.
+  ! In the CMIP6 version of EC-Earth3 a value of 1.78 ppmv was used
+  ! corresponding to the reference value in the Cariolle climatology (IPCC, 2002), set in module SU_GHGCLIM.
+  ! In the current model, a default value of 1.72 ppmv from IPCC (1990) is set, 
+  ! but this value is "unlikely to be used in any configuration" (see module SUECRAD).
+  ! We therefore use a value from the time series from the CMIP7 GHG forcing data set;
+  ! and pick a recent year that is more or less consistent with the updated value of RQLIM (see below):
+  ! 1.869522 ppmv for the year 2018: updated constant RQLIM operational
+  ! 1.877265 ppmv for 2019
+  ! 1.889479 ppmv for 2020
+  ! 1.906181 ppmv for 2021: last year CMIP7 historical simulation 
+  REAL(KIND=JPRB),PARAMETER :: RCH4_CL = 1.906181_JPRB 
 
   LOGICAL, SAVE :: FIRST_CALL = .TRUE.
 
@@ -146,6 +161,19 @@ SUBROUTINE ECE_CMIP_GHG(IYR, IMN, YDERDI)
       RCFC11 = ZCONC(4)*1.E-12_JPRB*ZC11RMWG
       RCFC12 = ZCONC(5)*1.E-12_JPRB*ZC12RMWG
       RNO2 = ZCONC(6)*1.E-13_JPRB*ZNO2RMWG
+
+      ! Modify RQLIM so to scale the production of water vapour from CH4 oxidation
+      !   RQLIM = RQLIM * [1.0 + (2.0/7.7)*Δ[CH4]_gm(t)].
+      ! The constant RQLIM was increased from 4.25E-6 to 4.81E-6 (corresponding to an increase from 6.8 to 7.7 ppmv)
+      ! in march 2017; this update became operational in cycle 45r1 in 2018.
+      ! Hence, the value of RCH4_CL has also been updated (see above).
+      !
+      ! Ideally this scaling is done based on the interpolated annual global mean mixing ratio at the surface
+      ! as in the CMIP6 version of EC-Earth3
+      ! Currently, it uses ZCONC(2), even if LGHGMONTHLY is TRUE
+      ! This still needs to be changed.
+      RQLIM = 4.81E-6_JPRB * (1.0_JPRB + (2.0_JPRB/7.7_JPRB)* (ZCONC(2) * 1.E-3_JPRB - RCH4_CL ))
+      WRITE(NULOUT,*) 'Updating RQLIM=4.81e-6 * (1.+2./7.7 * Delt[CH4] )=',RQLIM
 
       IMNOLD = IMN
     END IF
