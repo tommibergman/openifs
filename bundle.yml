@@ -99,12 +99,29 @@ cmake   : >
       dir: $PWD/../xios-2.5+/build_ecearth
       bundle: false
 
-  - openifs:
+  - ifs_dp:
       dir: $PWD/ifs-source
       version: develop
       cmake: >
         ENABLE_IFS_NETCDF=ON
         IFS_DP_ENABLE_SINGLE_PRECISION=OFF
+        FCM_EXECUTABLE=${SOURCE_DIR}/fcm/bin/fcm
+        ENABLE_OPENIFS_ONLY=ON
+        ENABLE_FORECAST_ONLY=ON
+        BUILD_odc=OFF
+        BUILD_oops=OFF ENABLE_OOPS=OFF
+        ENABLE_AEOLUS=OFF
+        BUILD_cope=OFF
+        BUILD_odb-tools=OFF
+        ENABLE_NEMO=OFF
+        ENABLE_OIFS_XIOS=ON
+        ENABLE_CPLNG2=ON
+
+  - ifs_sp:
+      dir: $PWD/ifs-source
+      version: develop
+      cmake: >
+        ENABLE_IFS_NETCDF=ON
         FCM_EXECUTABLE=${SOURCE_DIR}/fcm/bin/fcm
         ENABLE_OPENIFS_ONLY=ON
         ENABLE_FORECAST_ONLY=ON
