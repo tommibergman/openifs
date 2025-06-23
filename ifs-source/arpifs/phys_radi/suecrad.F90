@@ -863,8 +863,15 @@ IF (LCMIP6.OR.LCMIP7) THEN
   ! use only CO2+CH4+N2O+CFC11+CFC12 from CMIP6
   ! default setting can be overwritten in namelist NAERAD
   NGHGRAD=16
-  ! use prescribed ozone from CMIP6
-  LEPO3RA=.TRUE.
+
+  ! Use CMIP6 or CMIP7 O3
+  IF (LCMIP6) THEN
+     NO3CMIP=6
+  ELSE IF (LCMIP7) THEN
+     PRINT*,'WARNING: LCMIP7=T but CMIP7 not yet implemented. Reverting to CMIP6 O3' 
+     NO3CMIP=6
+  ENDIF
+
 ENDIF
 
 NAER=1

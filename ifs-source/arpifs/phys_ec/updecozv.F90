@@ -59,6 +59,7 @@ USE YOMCST   , ONLY : RPI, RDAY
 USE YOERDI   , ONLY : TERDI
 USE YOECMIP  , ONLY : TECMIP,NLON1_CMIP5, NLAT1_CMIP5, NLV1_CMIP5, NMONTH1, &
  &                    NLON1_CMIP6, NLAT1_CMIP6, NLV1_CMIP6
+USE ECE_CMIP,  ONLY : NCMIPFIXYR
 
 IMPLICIT NONE
 
@@ -75,7 +76,7 @@ INTEGER(KIND=JPIB),INTENT(IN)    :: KMINUT
 REAL(KIND=JPRB),ALLOCATABLE, SAVE :: ZYTIME(:), ZMDAY(:)
 
 
-INTEGER(KIND=JPIM) :: IDY, IM1, IM2, IMN, JK, JL, JI, JM
+INTEGER(KIND=JPIM) :: IDY, IM1, IM2, IMN, JK, JL, JI, JM, NINDAT
 INTEGER(KIND=JPIM) :: IH0,IJ0,IM0,IA0,IDD,ISS, IHR,IMIN,ISC,IYR,ILMOIS(12)
 
 INTEGER(KIND=JPIM) :: I, IUNIT, IDIR, IFIL
@@ -180,11 +181,18 @@ ELSE
   WRITE(NULOUT,*)"NO3CMIP:",YDECMIP%NO3CMIP
   CALL ABOR1('UPDECOZV: Value of NO3CMIP not supported')
 ENDIF
-IF (YDECMIP%NCMIPFIXYR>0) IYR=YDECMIP%NCMIPFIXYR ! If using perpetual CMIP forcing
+IF (NCMIPFIXYR>0) IYR=NCMIPFIXYR ! If using perpetual CMIP forcing
 
 !! rerun setup of ozv *if* current year is not that stored in YDECMIP
-IF (YDECMIP%NCURRYR /= IYR) THEN
-  CALL SUECOZV(YDECMIP,KINDAT)
+! Joakim: Also check if we want to read NCMIPFIXYR, but it is not what we have read before
+IF (YDECMIP%NCURRYR /= IYR .OR. (NCMIPFIXYR>0 .AND. YDECMIP%NCURRYR /= NCMIPFIXYR)) THEN
+  ! Joakim: SUECOZV is called with KINDAT which is the start date
+  ! so if model starts in 1990, we will always read 1990 even 
+  ! if current year is 2050. 
+  ! So we need to make a new date...
+  !CALL SUECOZV(YDECMIP,KINDAT) ! original code
+  NINDAT=IYR*10000+IMN*100+IDY ! 8-digit YYYYMMDD
+  CALL SUECOZV(YDECMIP,NINDAT)
 ENDIF
 
 

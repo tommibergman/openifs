@@ -1334,17 +1334,10 @@ DO JSTGLO=1,RADGRID%NGPTOT,NRPROMA
 
         IF (NOZOCL == 1.AND..NOT.LEPO3RA.AND..NOT.LPHYLIN) THEN
           IF (YDRIP%YRECMIP%NO3CMIP /= 0) THEN
-            IF (LCMIP6.OR.LCMIP7) THEN
-              CALL ECE_RADOZV_CMIP6 ( I1, I2, NRPROMA, KLEV,&
+            CALL RADOZV ( YDRIP%YRECMIP, I1, I2, NRPROMA, KLEV,&
                & 1 , NRPROMA , I1-1,&
                & ZRGP(1,IAPRS,IB) , ZRGP(1,IGELAM,IB) , ZRGP(1,IGEMU,IB),&
                & ZQOZ   )
-            ELSE
-              CALL RADOZV ( YDRIP%YRECMIP, I1, I2, NRPROMA, KLEV,&
-               & 1 , NRPROMA , I1-1,&
-               & ZRGP(1,IAPRS,IB) , ZRGP(1,IGELAM,IB) , ZRGP(1,IGEMU,IB),&
-               & ZQOZ   )
-            ENDIF
           ELSE
             CALL RADOZC ( YDRIP%YREOZOC, I1, I2, NRPROMA, KLEV,&
              & 1 , NRPROMA , I1-1,&
