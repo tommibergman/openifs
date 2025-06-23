@@ -23,7 +23,9 @@ SUBROUTINE suxios_ini
   LMPLUSERCOMM = .TRUE.
 
   ! Initialization of XIOS and definition of the MPLUSERCOMM communicator to be used by IFS
-  CALL xios_initialize(model_name,return_comm=MPLUSERCOMM)
+  !CALL xios_initialize(model_name,return_comm=MPLUSERCOMM)
+  ! Support for XIOS 3.0
+  CALL xios_initialize(model_name, local_comm=MPLUSERCOMM)
 
   !$OMP END SINGLE
   CALL GSTATS(2032,1)

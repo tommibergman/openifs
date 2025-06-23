@@ -30,7 +30,8 @@ USE COUPLING
 #endif
 #ifdef WITH_XIOS
 USE SUXIOS     ,ONLY : SUXIOS_INI, SUXIOS_FIN
-#elif WITH_CPLNG2
+#endif
+#ifdef WITH_CPLNG2
 USE CPLNG2
 #endif
 
@@ -82,10 +83,16 @@ LLSTARTUPCOST = .FALSE. ! If true, then display MPI startup cost (only ever to h
 ZMPI_INIT(:) = 0
 
 ! XIOS and MPI initialization
-#ifdef WITH_XIOS
-CALL SUXIOS_INI
-#elif WITH_CPLNG2
+! For XIOS3, we must call OASIS_INIT first
+! and then provide this communicator to 
+! XIOS_INIT
+#ifdef WITH_CPLNG2
+PRINT*,'IFS calling CPLNG2_INIT'
 CALL CPLNG2_INIT
+#endif
+#ifdef WITH_XIOS
+PRINT*,'IFS calling XIOS_INIT'
+CALL SUXIOS_INI
 #endif
 
 ! OASIS3 or OASIS4 interface must be initialized before any DR_HOOK call.
