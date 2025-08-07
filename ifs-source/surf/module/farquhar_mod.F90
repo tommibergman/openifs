@@ -440,9 +440,10 @@ DO JL=KIDIA,KFDIA
   ZPB(JL) = PAPHM(JL)/100.0
   ! Change units to ppm
   ZCO2(JL) = REAL(REAL(PCO2(JL),KIND=JPRD)*1.E6_JPRD*RMAIR/RMCO2 ,KIND=JPRB)
-  IF ((ZCO2(JL) > 600.0_JPRB) .OR. (ZCO2(JL) < 200.0_JPRB)) THEN
-    WRITE(*,*) 'farquhar : PCO2(JL), ZCO2 = ', PCO2(JL), ZCO2(JL)
-  ENDIF
+  ! comment this warning since it saturates the I/O in long run
+  !IF ((ZCO2(JL) > 600.0_JPRB) .OR. (ZCO2(JL) < 200.0_JPRB)) THEN
+  !  WRITE(*,*) 'farquhar : PCO2(JL), ZCO2 = ', PCO2(JL), ZCO2(JL)
+  !ENDIF
   ZVC(JL)=0._JPRB
   ZVJ(JL)=0._JPRB
   LCALCULATE(JL) = .FALSE.
