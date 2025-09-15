@@ -87,11 +87,9 @@ ZMPI_INIT(:) = 0
 ! and then provide this communicator to 
 ! XIOS_INIT
 #ifdef WITH_CPLNG2
-PRINT*,'IFS calling CPLNG2_INIT'
 CALL CPLNG2_INIT
 #endif
 #ifdef WITH_XIOS
-PRINT*,'IFS calling XIOS_INIT'
 CALL SUXIOS_INI
 #endif
 
@@ -290,7 +288,8 @@ IF (LLNEMOIO) CALL ENDNEMOIO()
 ! XIOS and MPI finalization
 #ifdef WITH_XIOS
 CALL SUXIOS_FIN
-#elif WITH_CPLNG2
+#endif
+#ifdef WITH_CPLNG2
 CALL CPLNG2_FINALIZE
 #endif
 
