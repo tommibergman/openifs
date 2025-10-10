@@ -50,6 +50,7 @@ SUBROUTINE UPDECOZV(YDERDI,YDECMIP,KINDAT,KMINUT)
  
 !     MODIFICATIONS.
 !     --------------
+!     J. Kjellsson 26/09/2025 - Support for CMIP7 forcings 
 !-----------------------------------------------------------------------
 
 USE PARKIND1 , ONLY : JPIM, JPRB, JPRD, JPIB
@@ -58,7 +59,8 @@ USE YOMLUN   , ONLY : NULOUT
 USE YOMCST   , ONLY : RPI, RDAY
 USE YOERDI   , ONLY : TERDI
 USE YOECMIP  , ONLY : TECMIP,NLON1_CMIP5, NLAT1_CMIP5, NLV1_CMIP5, NMONTH1, &
- &                    NLON1_CMIP6, NLAT1_CMIP6, NLV1_CMIP6
+ &                    NLON1_CMIP6, NLAT1_CMIP6, NLV1_CMIP6, &
+ &                    NLON1_CMIP7, NLAT1_CMIP7, NLV1_CMIP7 
 USE ECE_CMIP,  ONLY : NCMIPFIXYR
 
 IMPLICIT NONE
@@ -157,7 +159,24 @@ ENDIF
 
 
 ! SET TIME INTERVAL
-IF (YDECMIP%NO3CMIP == 6) THEN ! CMIP6 
+IF (YDECMIP%NO3CMIP == 7) THEN ! CMIP7
+
+    ! Note: These are the same as for CMIP6
+    ! at least in FZJ-CMIP-ozone-1-0 dataset 
+    NLON1 = NLON1_CMIP7
+    NLAT1 = NLAT1_CMIP7
+    NLV1  = NLV1_CMIP7  
+
+    IF (IYR < 1829) THEN
+        CALL ABOR1('IYR < 1829 not supported in CMIP7 ')
+    ENDIF
+    IF (IYR > 2022) THEN
+        WRITE(NULOUT,*) "UPDECOZV: IYR > 2022 not supported in CMIP7 (yet). Will repeat 2022 for now..."
+        IYR=MIN(IYR,2022)
+        WRITE(NULOUT,*) "UPDECOZV: IYR = ",IYR 
+    ENDIF
+
+ELSE IF (YDECMIP%NO3CMIP == 6) THEN ! CMIP6 
   IF(IYR < 1850) THEN
     IYR=1850
   ENDIF

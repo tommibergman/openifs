@@ -57,6 +57,7 @@ SUBROUTINE SUECOZV(YDECMIP,KINDAT)
 !     R. Senan/C. Roberts 26/01/2017 Support for CMIP6 forcings
 !     O. Marsden          30/01/2018 Split the update out from the setup, new UPDECOZV routine
 !     R. Senan            15/12/2021 CMIP6: Support for single precision
+!     J. Kjellsson        25/09/2025 Support for CMIP7 forcings 
 !-----------------------------------------------------------------------
 
 USE PARKIND1 , ONLY : JPIM, JPRB, JPRD, JPIB
@@ -64,7 +65,8 @@ USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMLUN   , ONLY : NULOUT
 USE YOMCST   , ONLY : RPI, RDAY
 USE YOECMIP  , ONLY : TECMIP,NLON1_CMIP5, NLAT1_CMIP5, NLV1_CMIP5, NMONTH1, &
- &                    NLON1_CMIP6, NLAT1_CMIP6, NLV1_CMIP6
+ &                    NLON1_CMIP6, NLAT1_CMIP6, NLV1_CMIP6, & 
+ &                    NLON1_CMIP7, NLAT1_CMIP7, NLV1_CMIP7 
 ! &                    CO3DATADIR, CO3DATAFIL, NRCP, NO3CMIP,NCMIPFIXYR
 USE ECE_CMIP,  ONLY : NCMIPFIXYR, SCENARIONAME 
 
@@ -87,13 +89,21 @@ INTEGER(KIND=JPIM) :: I, IUNIT, IDIR, IFIL
 LOGICAL            :: LLIS_OPEN
 CHARACTER(LEN=132) :: CLSKIP_LINE
 
-CHARACTER (LEN = 300) ::  CLFN
+CHARACTER (LEN = 300) ::  CLFN       ! full file name (dir + file)
+CHARACTER (LEN = 80)  ::  ZO3DATAFIL ! temporary string for file name
+
 
 CHARACTER (LEN = 10)  ::  CO3SCEN  ! scenario name 
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
+REAL(KIND=JPRB), ALLOCATABLE :: ZOZO_DATA(:,:,:,:) ! temporary array for ozone 
+
 INTEGER(KIND=JPIM) :: NLON1, NLAT1 ,NLV1
+INTEGER(KIND=JPIM) :: IYEAR1, IYEAR2 
+
+LOGICAL            :: LFIRSTYEAR  ! if first year of the ozone file 
+LOGICAL            :: LLASTYEAR   ! if last year of the ozone file 
 
 INTEGER(KIND=JPIM),SAVE :: IYROLD=-999
 #include "abor1.intfb.h"
@@ -116,7 +126,23 @@ IYR = NCCAA(KINDAT)
 
 
 ! SET TIME INTERVAL
-IF (YDECMIP%NO3CMIP == 6) THEN ! CMIP6 
+IF (YDECMIP%NO3CMIP == 7) THEN ! CMIP7
+  
+  IF (IYR < 1850) THEN
+      WRITE(NULOUT,*) "SUECOZV: For year < 1850 we set year = 1850" 
+      IYR=1850
+  ENDIF
+
+  IF (IYR > 2022) THEN
+      WRITE(NULOUT,*) "SUECOZV: For year > 2022 we set year = 2022" 
+      IYR=2022
+  ENDIF
+
+  NLON1 = NLON1_CMIP7
+  NLAT1 = NLAT1_CMIP7
+  NLV1  = NLV1_CMIP7
+
+ELSE IF (YDECMIP%NO3CMIP == 6) THEN ! CMIP6 
   IF(IYR < 1850) THEN
     IYR=1850
   ENDIF
@@ -154,8 +180,77 @@ IF (.NOT. ALLOCATED(YDECMIP%ZOZCL))     ALLOCATE(YDECMIP%ZOZCL(NLON1,NLAT1,NLV1,
 
 
 ! OPEN OZONE FORCING FILE
+IF (YDECMIP%NO3CMIP == 7) THEN ! read CMIP7 ozone data
+  
+  ! Note: Using CMIPFIXYR from NAMECECMIP rather than YDECMIP so that
+  ! we dont have to set the variable twice in EC-Earth
+  IF (NCMIPFIXYR > 0) THEN
+     IYR = NCMIPFIXYR
+     WRITE(NULOUT,*) "SUECOZV: NCMIPFIXYR to IYR ",NCMIPFIXYR,IYR
+  ENDIF
 
-IF (YDECMIP%NO3CMIP == 6) THEN ! READ CMIP6 OZONE DATA
+  WRITE(NULOUT,*)"SUECOZV: CO3DATADIR = ",YDECMIP%CO3DATADIR 
+
+  ! For a given year and scenario, find the right file to read
+  ! and its start and end year
+  ! Returns file name and whether the year is the first or last of the file
+  ! Set CMIP7_SCEN=SCENARIONAME to read a scenario
+  CALL FIND_NC_FILE_OZONE_CMIP7( IYR, IYEAR1, IYEAR2, &
+                               & YDECMIP%CO3DATAFIL, & ! file name
+                               & LFIRSTYEAR, LLASTYEAR, & ! first and last year of file 
+                               & CCMIP7_SCEN=SCENARIONAME) 
+
+  IDIR=LEN_TRIM(YDECMIP%CO3DATADIR)
+  IFIL=LEN_TRIM(YDECMIP%CO3DATAFIL)
+  CLFN=YDECMIP%CO3DATADIR(1:IDIR)//'/'//YDECMIP%CO3DATAFIL(1:IFIL)
+  
+  WRITE(NULOUT,'("SUECOZV: READ IN CMIP7 OZONE DATA FROM FILE ",A)')CLFN
+  WRITE(NULOUT,'("SUECOZV: READ IN CMIP7 OZONE DATA DIMENSIONS ",4I4)') NLON1,NLAT1,NLV1,NMONTH1
+  
+  ! Read data from netCDF file. 
+  ! We will read the last month of previous year and first month of next year, 
+  ! e.g. for 2000 we read Dec 1999 - Jan 2001 as index 0:13. 
+  ! But if it is the first or last year of the file, this is not possible so we just 
+  ! repeat the first or last month. 
+  CALL READ_NC_FILE_OZONE_CMIP7(CLFN, NLON1, NLAT1, NLV1, IYR, IYEAR1, IYEAR2, NMONTH1, YDECMIP%ZOZCL)
+  
+  ! If we are reading the first year of the file, we also need the last month
+  ! of the previous file
+  IF (LFIRSTYEAR) THEN
+      WRITE(NULOUT,*) "SUECOZV: Reading previous year ",IYR-1
+      ALLOCATE(ZOZO_DATA(NLON1, NLAT1, NLV1, 0:NMONTH1-1))
+      CALL FIND_NC_FILE_OZONE_CMIP7(IYR-1, IYEAR1, IYEAR2, ZO3DATAFIL, LFIRSTYEAR, LLASTYEAR)
+      IFIL=LEN_TRIM(ZO3DATAFIL) 
+      CLFN=YDECMIP%CO3DATADIR(1:IDIR)//'/'//ZO3DATAFIL(1:IFIL)  
+      CALL READ_NC_FILE_OZONE_CMIP7(CLFN, NLON1, NLAT1, NLV1, IYR-1, IYEAR1, IYEAR2, NMONTH1, ZOZO_DATA)
+      ! Put time index 12 (Dec) of previous year at index 0 (Dec)
+      YDECMIP%ZOZCL(:,:,:,12) = ZOZO_DATA(:,:,:,0)
+      DEALLOCATE(ZOZO_DATA)  
+      
+  ! If we are reading the last year of the file, we also need the first month 
+  ! of the next file
+  ELSE IF (LLASTYEAR) THEN
+      ! if year = 2022, then there is no more data
+      ! We will simply repeat 2022 again. 
+      ! When scenarios become available we can read that instead
+      IF (IYR == 2022) THEN
+          WRITE(NULOUT,*) "SUECOZV: Last year of data. Not reading next year." 
+      ELSE    
+          WRITE(NULOUT,*) "SUECOZV: Reading next year ",IYR+1 
+          ALLOCATE(ZOZO_DATA(NLON1, NLAT1, NLV1, 0:NMONTH1-1))
+          CALL FIND_NC_FILE_OZONE_CMIP7(IYR+1, IYEAR1, IYEAR2, ZO3DATAFIL, LFIRSTYEAR, LLASTYEAR)
+          IFIL=LEN_TRIM(ZO3DATAFIL)
+          CLFN=YDECMIP%CO3DATADIR(1:IDIR)//'/'//ZO3DATAFIL(1:IFIL)
+          CALL READ_NC_FILE_OZONE_CMIP7(CLFN, NLON1, NLAT1, NLV1, IYR+1, IYEAR1, IYEAR2, NMONTH1, ZOZO_DATA)
+          ! Put tme index 1 (Jan) of next year at index 13 (Jan) 
+          YDECMIP%ZOZCL(:,:,:,1) = ZOZO_DATA(:,:,:,13)
+          DEALLOCATE(ZOZO_DATA)
+      ENDIF
+  ENDIF
+  
+  ! end if CMIP7
+
+ELSE IF (YDECMIP%NO3CMIP == 6) THEN ! READ CMIP6 OZONE DATA
   ! Joakim: Use CMIPFIXYR (from NAMECECMIP, rather than YDECMIP)
   IF (NCMIPFIXYR>0) THEN 
     IYR=NCMIPFIXYR ! If using perpetual CMIP forcing
@@ -395,6 +490,49 @@ YDECMIP%RLONCLI=(/&
 IF (LHOOK) CALL DR_HOOK('SUECOZV:CMIP6_OZONE_COORD',1,ZHOOK_HANDLE)
 END SUBROUTINE CMIP6_OZONE_COORD
 
+!SUBROUTINE CMIP7_OZONE_COORD(CFILE, NLON1NC, NLAT1NC, NLV1NC)
+! 
+! Purpose: 
+!   Populate the arrays RLONCLI, RLATCLI, RPROC1 in YDECMIP 
+!   which contain the lon, lat and pressure levels for ozone
+!
+! Joakim Kjellsson, SMHI, 25/09/2025
+!
+
+!    CHARACTER(LEN=150), INTENT(IN)   :: CFILE
+!    INTEGER(KIND=JPIM), INTENT(IN)   :: NLON1NC, NLAT1NC, NLV1NC 
+!    INTEGER(KIND=JPIM)               :: INCUNIT, ILONVARID, ILATVARID, IPREVARID
+!    INTEGER(KIND=JPIM)               :: ISTART
+!    REAL(KIND=JPHOOK)                :: ZHOOK_HANDLE
+    
+!    IF (LHOOK) CALL DR_HOOK('SUECOZV:CMIP6_OZONE_COORD',0,ZHOOK_HANDLE)
+
+    ! Open file and check for variables
+!    CALL CHECK( NF_OPEN(CC,NF_NOWRITE,INCUNIT) ) 
+
+!    CALL CHECK( NF_INQ_VARID(INCUNIT, "lon", ILONVARID) )
+!    CALL CHECK( NF_INQ_VARID(INCUNIT, "lat", ILATVARID) )
+!    CALL CHECK( NF_INQ_VARID(INCUNIT, "plev", IPREVARID) )  
+    
+    ! read lon, lat, plev
+!    ISTART = 1
+!    IF(JPRB==JPRD) THEN ! if double precision 
+!        CALL CHECK( NF_GET_VARA_DOUBLE(INCUNIT, ILONVARID, ISTART, NLON1NC, YDECMIP%RLONCLI) )
+!        CALL CHECK( NF_GET_VARA_DOUBLE(INCUNIT, ILONVARID, ISTART, NLAT1NC, YDECMIP%RLATCLI) )
+!        CALL CHECK( NF_GET_VARA_DOUBLE(INCUNIT, ILONVARID, ISTART, NLV1NC,  YDECMIP%RPROC1) )
+!    ELSE ! if single precision
+!        CALL CHECK( NF_GET_VARA_REAL(INCUNIT, ILONVARID, ISTART, NLON1NC, YDECMIP%RLONCLI) )
+!        CALL CHECK( NF_GET_VARA_REAL(INCUNIT, ILONVARID, ISTART, NLAT1NC, YDECMIP%RLATCLI) )
+!        CALL CHECK( NF_GET_VARA_REAL(INCUNIT, ILONVARID, ISTART, NLV1NC,  YDECMIP%RPROC1) )
+!    ENDIF
+
+    ! done
+!    CALL CHECK( NF_CLOSE(INCUNIT) )
+
+!IF (LHOOK) CALL DR_HOOK('SUECOZV:CMIP6_OZONE_COORD',1,ZHOOK_HANDLE)
+
+!END SUBROUTINE CMIP7_OZONE_COORD
+
 SUBROUTINE READ_NC_FILE_OZONE_CMIP6(CC,NLON1NC,NLAT1NC,NLV1NC,NMONTH1NC,ZOZCL)
   ! Based on EC-Earth code from Michiel van Weele.
   ! Read CMIP6 ozone forcing from NetCDF datafiles (NMONTH1=14 months)
@@ -436,10 +574,221 @@ SUBROUTINE READ_NC_FILE_OZONE_CMIP6(CC,NLON1NC,NLAT1NC,NLV1NC,NMONTH1NC,ZOZCL)
 
 END SUBROUTINE READ_NC_FILE_OZONE_CMIP6
 
+
+SUBROUTINE FIND_NC_FILE_OZONE_CMIP7(IYR1, IYEAR1F, IYEAR2F, CC, LFIRSTYR, LLASTYR, CCMIP7_SCEN)
+
+    INTEGER(KIND=JPIM),           INTENT(IN)   :: IYR1              ! year
+    CHARACTER(LEN=*), OPTIONAL,   INTENT(IN)   :: CCMIP7_SCEN       ! scenario
+    INTEGER(KIND=JPIM),           INTENT(OUT)  :: IYEAR1F, IYEAR2F  ! first and last year of file
+    CHARACTER(LEN=80),            INTENT(OUT)  :: CC                ! file name
+    LOGICAL,                      INTENT(OUT)  :: LFIRSTYR, LLASTYR ! is it first or last year of file?
+
+    ! Determine which file to read
+    ! CMIP7 files (so far) cover periods
+    ! 182901-184912
+    ! 185001-189912
+    ! 190001-194912 
+    ! 195001-199912 
+    ! 200001-202212 
+    ! For piControl (or any fixed year) we just repeat
+    SELECT CASE ( IYR1 )
+        CASE ( 1829:1849 ) ! 1829 <= IYR <= 1849 
+            IYEAR1F = 1829
+            IYEAR2F = 1849
+        CASE ( 1850:1899 ) ! 1850 <= IYR <= 1899
+            IYEAR1F = 1850
+            IYEAR2F = 1899
+        CASE ( 1900:1949 ) ! 1900 <= IYR <= 1949
+            IYEAR1F = 1900
+            IYEAR2F = 1949
+        CASE ( 1950:1999 ) ! 1950 <= IYR <= 1999
+            IYEAR1F = 1950
+            IYEAR2F = 1999
+        CASE ( 2000:2022 ) ! 2000 <= IYR <= 2022 
+            IYEAR1F = 2000
+            IYEAR2F = 2022
+        CASE ( 2023:2100 ) ! 2023 <= IYR <= 2100
+            IYEAR1F = 2023
+            IYEAR2F = 2100
+            IF ( .NOT. PRESENT(CCMIP7_SCEN) ) THEN
+                WRITE(NULOUT,*) "SUECOZV: 2023 <= YEAR <= 2100 but no CMIP7 scenario specified "
+                CALL ABOR1("SUECOZV: Can not find ozone file ") 
+            END IF 
+        CASE DEFAULT       ! else: not included in historical forcing
+            ! todo: add scenarios as they become available later
+            WRITE(NULOUT,*) "SUECOZV: Can not find ozone data for year ",IYR1
+            WRITE(NULOUT,*) "SUECOZV: CMIP7 ozone only works for years 1829-2022 "  
+            CALL ABOR1("SUECOZV: No CMIP7 ozone data found ")
+    END SELECT
+    
+    ! Check if IYR1 is the first or last year of file
+    ! If so, we will later read the last month of previous year
+    ! or first month of next year
+    LFIRSTYR = .FALSE.
+    LLASTYR  = .FALSE.
+    
+    IF ( IYR1 == 1849 .OR. &
+       & IYR1 == 1899 .OR. &
+       & IYR1 == 1949 .OR. &
+       & IYR1 == 1999 .OR. &
+       & IYR1 == 2022 ) THEN
+
+        LLASTYR = .TRUE.
+    
+    ELSE IF ( IYR1 == 1850 .OR. &
+            & IYR1 == 1900 .OR. & 
+            & IYR1 == 1950 .OR. & 
+            & IYR1 == 2000 ) THEN
+
+        LFIRSTYR = .TRUE.
+
+    END IF
+    
+    WRITE(NULOUT,*) "SUECOZV: IYR1, LFIRSTYR, LLASTYR = ",IYR1,LFIRSTYR,LLASTYR 
+
+    ! set file name for historical ozone 
+    ! if year1 = 1850 and year2 = 1899 we need to write 185001 and 189912 
+    WRITE(CC,'(''ozone/vmro3_input4MIPs_ozone_CMIP_FZJ-CMIP-ozone-1-0_gn_'',I6.6,''-'',I6.6,''.nc'')') &
+            & IYEAR1F*100+1, IYEAR2F*100+12
+    WRITE(NULOUT,*) "SUECOZV: CC = ",CC
+
+END SUBROUTINE FIND_NC_FILE_OZONE_CMIP7
+
+
+SUBROUTINE READ_NC_FILE_OZONE_CMIP7(CC,NLON1NC,NLAT1NC,NLV1NC,IYR1NC,IYEAR1NC,IYEAR2NC,NMONTH1NC,ZOZCL)
+    !
+    ! Based on READ_NC_FILE_OZONE_CMIP6 above 
+    !
+    ! Purpose: 
+    !    Read CMIP7 ozone forcing from NetCDF datafiles. 
+    !    50 years for most files 
+    !    Dimensions should be nlon=144, nlat=96, nlev=66
+    ! 
+    ! Method: 
+    !    Read ozone data for the entire year at the beginning of each year.
+    !    Include Dec from year-1 and Jan from year+1 (total 14 months) to allow
+    !    time interpolations to cover < 15 Jan and > 15 Dec.  
+    !    Store in ZOZCL(JI,JL,JK,JM) with CMIP7 ozone forcing data dimensions (144,96,66,14)
+    !
+    ! Note: 
+    !    CMIP7 ozone has the same name and dimensions as CMIP6 so we could have re-used CMIP6 routines
+    !    But it felt better to re-do it in case CMIP7 later upgrades to higher spatial or temporal resolution
+    !
+    CHARACTER(LEN=150),INTENT(IN)    :: CC ! file to read
+    INTEGER(KIND=JPIM),INTENT(IN)    :: NLON1NC, NLAT1NC ,NLV1NC ! nlon, nlat, nlev
+    INTEGER(KIND=JPIM),INTENT(IN)    :: IYR1NC, NMONTH1NC ! year to read and number of months (usually 14 months)
+    INTEGER(KIND=JPIM),INTENT(IN)    :: IYEAR1NC, IYEAR2NC ! first and last year of file
+    REAL(KIND=JPRB), INTENT(INOUT)   :: ZOZCL(NLON1NC, NLAT1NC ,NLV1NC, 0:NMONTH1NC+1) ! ozone field for 2 extra months 
+    REAL(KIND=JPRD), ALLOCATABLE     :: ZLON(:), ZLAT(:), ZLV(:) 
+    REAL(KIND=JPRB), ALLOCATABLE     :: OZO_CMIP7(:,:,:) ! 3d field of ozone to read from file 
+    INTEGER(KIND=JPIM)               :: INCUNIT, ILONVARID, ILATVARID, IPREVARID, IOZOVARID ! ids for netcdf reading
+    INTEGER(KIND=JPIM)               :: IMONTH1, ILEV1 ! month and level indices
+    INTEGER(KIND=JPIM), DIMENSION(4) :: ISTART,ISIZE ! start index and size of netcdf arrays
+    CHARACTER(LEN=*),PARAMETER       :: COZONAME='vmro3' ! name of ozone variable in netcdf files
+
+    ! open netcdf file and read coordinates
+    CALL CHECK( NF_OPEN(CC,NF_NOWRITE,INCUNIT) )
+    
+    CALL CHECK( NF_INQ_VARID(INCUNIT, "lon", ILONVARID) )
+    CALL CHECK( NF_INQ_VARID(INCUNIT, "lat", ILATVARID) )
+    CALL CHECK( NF_INQ_VARID(INCUNIT, "plev", IPREVARID) )
+    
+    ALLOCATE( ZLON(NLON1NC), ZLAT(NLAT1NC), ZLV(NLV1NC) )
+
+    ! read lon, lat, plev
+    ! These are DOUBLE in the data, so always read double precision
+    CALL CHECK( NF_GET_VARA_DOUBLE(INCUNIT, ILONVARID, (/1/), (/NLON1NC/), ZLON) )
+    CALL CHECK( NF_GET_VARA_DOUBLE(INCUNIT, ILATVARID, (/1/), (/NLAT1NC/), ZLAT) )
+    CALL CHECK( NF_GET_VARA_DOUBLE(INCUNIT, IPREVARID, (/1/), (/NLV1NC/),  ZLV) )
+    
+    !WRITE(NULOUT, *) "SUECOZV: ZLON = ",ZLON
+    !WRITE(NULOUT, *) "SUECOZV: ZLAT = ",ZLAT
+    !WRITE(NULOUT, *) "SUECOZV: ZLV  = ",ZLV
+
+    !
+    ! read ozone for this year as well as Dec of year-1 and Jan of year+1
+    !
+
+    ALLOCATE(OZO_CMIP7(NLON1NC,NLAT1NC,NLV1NC)) ! 3d field to read
+
+    ! indices to read from file 
+    ISIZE  = (/ NLON1NC, NLAT1NC, NLV1NC, 1 /)
+  
+    ! READ 3-D FIELD 
+    CALL CHECK( NF_INQ_VARID(INCUNIT, COZONAME, IOZOVARID) )
+    
+    DO IMONTH1 = 1,NMONTH1NC ! loop from 1 to 14
+        
+        ! If IYEAR1NC is 1850 and IYR is 1860, 
+        ! then (IYR1NC - IYEAR1NC)*12 + 1 = 10*12 = 120 
+        ! which would be Dec 1859. Then we read 1 month at a time
+        ISTART = (/       1,       1,      1, (IYR1NC - IYEAR1NC)*12+IMONTH1-1 /)
+        
+        ! If it is the first year and first month of file, the previous index does not exist
+        ! Read first index anyway
+        IF (IYR1NC == IYEAR1NC .AND. IMONTH1 == 1) THEN
+            ISTART(4) = 1
+        ! If it is the last year and last month of file, the next index does not exist
+        ! Read the last again
+        ELSE IF (IYR1NC == IYEAR2NC .AND. IMONTH1 == NMONTH1NC) THEN
+            ISTART(4) = (IYR1NC - IYEAR1NC)*12+IMONTH1-2
+        END IF
+            
+        WRITE(NULOUT,*) "SUECOZV: ISTART ", ISTART
+        WRITE(NULOUT,*) "SUECOZV: ISIZE ", ISIZE 
+        
+        IF(JPRB==JPRD)THEN ! if double precision
+            ! Joakim: I am skeptical about this read. 
+            ! The vmro3 field in the netCDF file is single precision but here we read into 
+            ! double precision. I suppose it just pads with garbage decimals at the end. 
+            ! A better solution would be to always read SP and then cast to DP if needed. 
+            WRITE(NULOUT,*) "SUECOZV: Read 3D ozone in DP "
+            CALL CHECK( NF_GET_VARA_DOUBLE(INCUNIT, IOZOVARID, ISTART, ISIZE, OZO_CMIP7(:,:,:)) )
+        ELSE ! single precision
+            WRITE(NULOUT,*) "SUECOZV: Read 3D ozone in SP "
+            CALL CHECK( NF_GET_VARA_REAL  (INCUNIT, IOZOVARID, ISTART, ISIZE, OZO_CMIP7(:,:,:)) )
+        ENDIF
+        
+        ! Reverse vertical levels, convert from mole/mole to ppm and store in ZOZCL
+        ! Put first month on index 0 of ZOZCL so that second month (Jan of YEAR) is index 1
+        DO ILEV1= 1,NLV1NC
+            ZOZCL(:,:,ILEV1,IMONTH1-1) = OZO_CMIP7(:,:,NLV1NC-ILEV1+1)*1.E+06_JPRB
+        ENDDO
+          
+    ENDDO
+    
+    ! Reverse order of plev as well 
+    DO ILEV1= 1,NLV1NC
+        YDECMIP%RPROC1(ILEV1)      = ZLV(NLV1NC-ILEV1+1)
+    ENDDO
+    
+    ! plev is size NLV1NC from 0.01 Pa to 100000 Pa
+    ! RPROC1 is 0:NLV1NC+1 and should start at 0 Pa 
+    ! and end at 110000 Pa
+    YDECMIP%RPROC1(0)        = 0.0_JPRB
+    YDECMIP%RPROC1(NLV1NC+1) = 110000.0_JPRB 
+    
+    ! lon and lat
+    ! Joakim: ZLON, ZLAT and ZLV are double precision in the netCDF file
+    ! If we run single precision, I think these will be cast to single precision
+    ! here, but not sure if this is the best way to do it. 
+    YDECMIP%RLONCLI(:) = ZLON(:)
+    YDECMIP%RLATCLI(:) = ZLAT(:) 
+    WRITE(NULOUT, *) "SUECOZV: RLONCLI = ",YDECMIP%RLONCLI(:)
+    WRITE(NULOUT, *) "SUECOZV: RLATCLI = ",YDECMIP%RLATCLI(:)
+    WRITE(NULOUT, *) "SUECOZV: RPROC1  = ",YDECMIP%RPROC1(:) 
+
+    ! CLOSE NETCDF FILE
+    CALL CHECK( NF_CLOSE(INCUNIT) )
+
+    DEALLOCATE(ZLON, ZLAT, ZLV, OZO_CMIP7)
+
+END SUBROUTINE READ_NC_FILE_OZONE_CMIP7
+
 SUBROUTINE CHECK(STATUS)
   INTEGER(KIND=JPIM), INTENT (IN) :: STATUS
   IF(STATUS /= NF_NOERR) THEN
-     CALL ABOR1('READ_NC_FILE_OZONE_CMIP6: '//TRIM(NF_STRERROR(STATUS)))
+     CALL ABOR1('SUECOZV:  '//TRIM(NF_STRERROR(STATUS)))
   ENDIF
 END SUBROUTINE CHECK
 

@@ -54,6 +54,7 @@ SUBROUTINE RADOZV ( YDECMIP, KIDIA , KFDIA , KLON , KLEV,&
 !     MODIFICATIONS.
 !     --------------
 !     C. Roberts/R. Senan 26/01/2017 Support for CMIP6 forcings
+!     J. Kjellsson 26/09/2025 Support for CMIP7 forcings
 
 !-----------------------------------------------------------------------
 
@@ -62,7 +63,8 @@ USE PARKIND1 , ONLY : JPIM, JPRB
 USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOECMIP  , ONLY : TECMIP, &
   &                   NLON1_CMIP5, NLAT1_CMIP5, NLV1_CMIP5, &
-  &                   NLON1_CMIP6, NLAT1_CMIP6, NLV1_CMIP6
+  &                   NLON1_CMIP6, NLAT1_CMIP6, NLV1_CMIP6, & 
+  &                   NLON1_CMIP7, NLAT1_CMIP7, NLV1_CMIP7 
 
 IMPLICIT NONE
 
@@ -106,8 +108,15 @@ INTEGER(KIND=JPIM) :: NLON1, NLAT1 ,NLV1
 !     ------------------------------------------------------------------
 !     ------------------------------------------------------------------
 
+IF (YDECMIP%NO3CMIP == 7) THEN ! CMIP7
+  
+    ! note: These are identical to CMIP6
+    ! at least in FZJ-CMIP-ozone-1-0
+    NLON1 = NLON1_CMIP7
+    NLAT1 = NLAT1_CMIP7
+    NLV1  = NLV1_CMIP7
 
-IF (YDECMIP%NO3CMIP == 6) THEN ! CMIP6
+ELSE IF (YDECMIP%NO3CMIP == 6) THEN ! CMIP6
   NLON1=NLON1_CMIP6
   NLAT1=NLAT1_CMIP6
   NLV1=NLV1_CMIP6

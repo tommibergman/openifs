@@ -53,7 +53,8 @@ SUBROUTINE ECE_CMIP_GHG(IYR, IMN, YDERDI)
   TYPE(TERDI),     INTENT(INOUT) :: YDERDI ! Output gas concentrations
 
   INTEGER(KIND=JPIM) :: IYR1, IYR2, IMN0
-  INTEGER(KIND=JPIM), SAVE :: IYR2OLD = 0_JPIM, IMNOLD = 0_JPIM
+  INTEGER(KIND=JPIM), SAVE :: IYR2OLD = 0_JPIM, IMNOLD = 0_JPIM, IYROLD = 0_JPIM
+  LOGICAL :: LRDGHG
 
   REAL(KIND=JPRB) :: ZCO2RMWG, ZCH4RMWG, ZN2ORMWG, ZNO2RMWG, ZC11RMWG, ZC12RMWG
 
@@ -117,8 +118,15 @@ SUBROUTINE ECE_CMIP_GHG(IYR, IMN, YDERDI)
       IMN0 = IMN - 6
     END IF
 
-    IF ((IMN .NE. IMNOLD).OR.(IYR2 .NE. IYR2OLD)) THEN ! Test on IYR2 in case we jump a full year between calls
+    ! do we need to update GHG conc ?
+    LRDGHG = .FALSE.
+    IF (LGHGMONTHLY) THEN
+      LRDGHG = (IMN .NE. IMNOLD).OR.(IYR .NE. IYROLD)
+    ELSE
+      LRDGHG = (IMN .NE. IMNOLD).OR.(IYR2 .NE. IYR2OLD) ! Test on IYR2 in case we jump a full year between calls
+    END IF
 
+    IF (LRDGHG) THEN
       WRITE (NULOUT, *) 'ECE_CMIP_GHG:'
       IF (NCMIPFIXYR <= 0) THEN
         WRITE (NULOUT, FMT='('' IYR ='',I4,'' IMN ='',I4,'' IMN0 ='',I4 &
@@ -176,6 +184,7 @@ SUBROUTINE ECE_CMIP_GHG(IYR, IMN, YDERDI)
       WRITE(NULOUT,*) 'Updating RQLIM=4.81e-6 * (1.+2./7.7 * Delt[CH4] )=',RQLIM
 
       IMNOLD = IMN
+      IYROLD = IYR
     END IF
 
   END ASSOCIATE
@@ -258,6 +267,13 @@ CONTAINS
       ELSE
         JYEAR = IYEAR
       END IF
+      
+      ! -- GHG data only exists until 2022 
+      ! -- Repeat 2022 if necessary
+      IF (LCMIP7) THEN
+          JYEAR = MIN(JYEAR,2022)
+          WRITE(NULOUT, *) "ECE_CMIP_GHG: Set JYEAR=MIN(JYEAR,2022)=",JYEAR
+      END IF
 
       ZTGHG = TGHG(JYEAR)
 
@@ -280,6 +296,13 @@ CONTAINS
         JYEAR = NCMIPFIXYR_CH4
       ELSE
         JYEAR = IYEAR
+      END IF
+      
+      ! -- CH4 data ends in 2022
+      ! -- Repeat 2022 if necessary
+      IF (LCMIP7) THEN
+          JYEAR = MIN(JYEAR,2022)
+          WRITE(NULOUT,*) "ECE_CMIP_GHG: Set JYEAR=MIN(JYEAR,2022)=",JYEAR 
       END IF
 
       ZTGHGCH4 = TGHG(JYEAR)
@@ -408,27 +431,25 @@ CONTAINS
 
     IF (LCMIP7) THEN
 
-      TGHG%DATADIR = CMIP7DATADIR
+      TGHG%DATADIR = TRIM(CMIP7DATADIR)//'/ghg'
 
       IF (IY < 2023) THEN
+        SELECT CASE (IY)
+        CASE (1:999)
+          TGHG%IFIRSTYR = 1        ! The first year in the data set
+          TGHG%ILASTYR = 999
+        CASE (1000:1749)
+          TGHG%IFIRSTYR = 1000
+          TGHG%ILASTYR = 1749
+        CASE (1750:2022)
+          TGHG%IFIRSTYR = 1750
+          TGHG%ILASTYR = 2022
+        END SELECT
         ! yearly or monthly
         IF (LGHGMONTHLY) THEN
-          TIMEPERIOD = '000001-201412'  ! PLACE HOLDER - UNKNOWN
+          WRITE(TIMEPERIOD, '(I4.4,I2.2,"-",I4.4,I2.2)') TGHG%IFIRSTYR,1,TGHG%ILASTYR,12
         ELSE
-          SELECT CASE (IY)
-          CASE (1:999)
-            TIMEPERIOD = '0001-0999' ! Filename extension
-            TGHG%IFIRSTYR = 1        ! The first year in the data set
-            TGHG%ILASTYR = 999
-          CASE (1000:1749)
-            TIMEPERIOD = '1000-1749'
-            TGHG%IFIRSTYR = 1000
-            TGHG%ILASTYR = 1749
-          CASE (1750:2022)
-            TIMEPERIOD = '1750-2022'
-            TGHG%IFIRSTYR = 1750
-            TGHG%ILASTYR = 2022
-          END SELECT
+          WRITE(TIMEPERIOD, '(I4.4,"-",I4.4)') TGHG%IFIRSTYR,TGHG%ILASTYR
         END IF
         TGHG%FILEID = '_input4MIPs_GHGConcentrations_CMIP_CR-CMIP-1-0-0_gm_'//TRIM(TIMEPERIOD)
       !FUTURE-TODO ELSE

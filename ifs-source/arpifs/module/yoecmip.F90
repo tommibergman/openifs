@@ -52,6 +52,9 @@ IMPLICIT NONE
 !     NLON1_CMIP6 INT    Number of longitudes in CMIP6 ozone data  
 !     NLAT1_CMIP6 INT    Number of latitudes in CMIP6 ozone data   
 !     NLV1_CMIP6  INT    Number of levels in CMIP6 ozone data      
+!     NLON1_CMIP7 INT    Number of longitudes in CMIP7 ozone data  
+!     NLAT1_CMIP7 INT    Number of latitudes in CMIP7 ozone data   
+!     NLV1_CMIP7  INT    Number of levels in CMIP7 ozone data
 !     NMONTH1     INT    Number of months in each ozone data file
 !     NCURRYR     INT    Year of the ozone data currently stored in ZOZCL
 
@@ -64,7 +67,9 @@ INTEGER(KIND=JPIM),PARAMETER :: NLON1_CMIP6=144
 INTEGER(KIND=JPIM),PARAMETER :: NLAT1_CMIP6=96
 INTEGER(KIND=JPIM),PARAMETER :: NLV1_CMIP6=66
 INTEGER(KIND=JPIM),PARAMETER :: NMONTH1=14
-
+INTEGER(KIND=JPIM),PARAMETER :: NLON1_CMIP7=144
+INTEGER(KIND=JPIM),PARAMETER :: NLAT1_CMIP7=96
+INTEGER(KIND=JPIM),PARAMETER :: NLV1_CMIP7=66
 
 TYPE :: TECMIP
 

@@ -72,12 +72,6 @@ SUBROUTINE SETUP_ECE_CMIP
     IF ((LA4XCO2.OR.L1PCTCO2).AND.NCMIPFIXYR<=0) &
         &   CALL ABOR1('ECE_CMIP: set NCMIPFIXYR if LA4XCO2 or L1PCTCO2')
 
-    ! temporary check, remove after LGHGMONTHLY fully functional
-    IF (LGHGMONTHLY) THEN
-        WRITE(NULOUT, *) 'LGHGMONTHLY not fully implemented yet'
-        CALL ABOR1('ECE_CMIP: ABOR1 CALLED (LGHGMONTHLY not fully implemented yet)')
-    ENDIF
-
     ! print actual setting in logfile
     WRITE(NULOUT, nml=NAMECECMIP)
 END SUBROUTINE SETUP_ECE_CMIP
