@@ -43,7 +43,7 @@ SUBROUTINE ECE_CMIP_GHG(IYR, IMN, YDERDI)
   USE MPL_MODULE,    ONLY: MPL_BROADCAST
   USE YOERDI,        ONLY: TERDI
   USE ECE_CMIP,      ONLY: CMIP6DATADIR, CMIP7DATADIR, NCMIPFIXYR, NCMIPFIXYR_CH4, &
-                       & SCENARIONAME, LA4xCO2, L1PCTCO2, LGHGMONTHLY, LCMIP6, LCMIP7
+                       & SCENARIONAME, LANxCO2, RNxCO2, L1PCTCO2, LGHGMONTHLY, LCMIP6, LCMIP7
   USE YOEMETH,       ONLY : RQLIM
   USE NETCDF
 
@@ -64,8 +64,6 @@ SUBROUTINE ECE_CMIP_GHG(IYR, IMN, YDERDI)
 
 ! Increase rate of co2 per year in 1pctCO2 experiment
   REAL(KIND=JPRB), PARAMETER :: RCO2INC = 0.01_JPRB
-! co2 level of co2 the Abrupt4xCO2 experiment
-  REAL(KIND=JPRB), PARAMETER :: R4xCO2 = 4.0_JPRB
 
   ! Reference value of the global mean volume mixing ratio of CH4 at the surface,
   ! used in the parameterization of the water vapour production from methane oxidation in the stratosphere.
@@ -134,8 +132,8 @@ SUBROUTINE ECE_CMIP_GHG(IYR, IMN, YDERDI)
              & IYR, IMN, IMN0, IYR1, IYR2, IYR2OLD, IMNOLD
       ELSE
         WRITE (NULOUT, FMT='('' NCMIPFIXYR ='',I4,'' IMN ='',I4,'' IMN0 ='',I4 &
-             & ,'' LA4xCO2='',L4,'' L1pctCO2='',L4)') &
-             & NCMIPFIXYR, IMN, IMN0, LA4xCO2, L1pctCO2
+             & ,'' L1pctCO2='',L4,'' LANxCO2='',L4,'' RNxCO2='',F4.2)') &
+             & NCMIPFIXYR, IMN, IMN0, L1pctCO2, LANxCO2, RNxCO2
       END IF
 
       IF (LGHGMONTHLY) THEN
@@ -378,11 +376,11 @@ CONTAINS
       ZFCONC(2, 4) = ZZCFC11
       ZFCONC(2, 5) = ZZCFC12
 
-      IF (LA4xCO2) THEN
-        ! Abrupt4xCO2 - The CO2 abruptly quadrupled of the NCMIPFIXYR level and held constant
-        ZFCONC(2, 1) = ZZCO2*R4xCO2
-        WRITE (NULOUT, '(''LA4xCO2='',L1,'' CO2 concentration prescribed as '',F8.2)') &
-          &   LA4xCO2, ZFCONC(2, 1)
+      IF (LANxCO2) THEN
+        ! AbruptNxCO2 - The CO2 abruptly multiplied by RNxCO2 of the NCMIPFIXYR level and held constant
+        ZFCONC(2, 1) = ZZCO2*RNxCO2
+        WRITE (NULOUT, '(''LANxCO2='',L1,'' RNxCO2='',F4.2,'' CO2 concentration prescribed as '',F8.2)') &
+          &   LANxCO2, RNxCO2, ZFCONC(2, 1)
 
       ELSE IF (L1PCTCO2) THEN
         ! 1pctCO2 - the CO2 increase at the rate of 1%/year. In contrast to the CMIP5 protocol,
