@@ -8,7 +8,7 @@ MODULE ECE_CMIP
 !   - namelist NAMECECMIP
 ! =============================================================================
 
-    USE PARKIND1,ONLY : JPIM
+    USE PARKIND1,ONLY : JPIM, JPRB
 
     IMPLICIT NONE
 
