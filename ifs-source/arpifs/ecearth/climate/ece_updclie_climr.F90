@@ -8,6 +8,7 @@ subroutine ece_updclie_climr(YDGEOMETRY, YDSURF, YDMODEL)
    use YOMLUN, only: NULOUT, NULERR
    use YOMMP0, only: MYPROC
    use MPL_MODULE, only: MPL_BROADCAST
+   use ECEARTH, only: ECE_CPL_LPJG
 
    implicit none
 
@@ -474,15 +475,15 @@ contains
                               " not implemented for ECE4")') NALBEDOSCHEME
                   CALL ABOR1('ece_udclie_climr: '//TRIM(msg))
                end if
-
-               ! LAI low/high, grib parameters 66, 67
-               SD_VF(jrof, YSD_VF%YLAIL%MP, ibl) = &
-                  zp*CLIMR(jstglo + jrof - 1, np, gc66) &
-                  + zn*CLIMR(jstglo + JROF - 1, nn, gc66)
-               SD_VF(jrof, YSD_VF%YLAIH%MP, ibl) = &
-                  zp*CLIMR(jstglo + jrof - 1, np, gc67) &
-                  + zn*CLIMR(jstglo + jrof - 1, nn, gc67)
-
+               IF (.NOT. ECE_CPL_LPJG) THEN
+                ! LAI low/high, grib parameters 66, 67
+                 SD_VF(jrof, YSD_VF%YLAIL%MP, ibl) = &
+                    zp*CLIMR(jstglo + jrof - 1, np, gc66) &
+                    + zn*CLIMR(jstglo + JROF - 1, nn, gc66)
+                 SD_VF(jrof, YSD_VF%YLAIH%MP, ibl) = &
+                    zp*CLIMR(jstglo + jrof - 1, np, gc67) &
+                    + zn*CLIMR(jstglo + jrof - 1, nn, gc67)
+               ENDIF
             end do
          end do
 

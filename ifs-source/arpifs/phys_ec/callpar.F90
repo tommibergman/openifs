@@ -264,6 +264,7 @@ USE YOE_PHYS_MWAVE , ONLY : N_PHYS_MWAVE
 USE TM5_CHEM_MODULE    , ONLY : NCHEM2AER
 #ifdef WITH_CPLNG2
 USE ECEARTH
+USE CPLNG2
 #endif
 !     ------------------------------------------------------------------
 
@@ -312,6 +313,8 @@ INTEGER(KIND=JPIM) :: IFLAG, JK, JL, JSW, JEXT, ITRC, J2D, JRF
 
 REAL(KIND=JPRB) :: ZRG, ZRCPD, ZCONS, ZCONS1
 
+! Locals for array indexing (ECEARTH, LPJG)
+INTEGER(KIND=JPIM) :: IL,IE,IG
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 ! --------------------------------------
@@ -1887,8 +1890,57 @@ DO JK=1,KDIM%KLEV
    ENDDO
 ENDDO
 
+! ULUND_TODO - Move this block to something like a "ECE_SEND_LPJG_INPUT" routine.
+!   see above: IF (ECE_CPL_NEMO_LIM) CALL ECE_NEMO_SET_OCEAN_FLUXES(YDSURF, KDIM, SURFL, PSURF, FLUX)
+IF (ECE_CPL_LPJG) THEN
+
+  IL = KDIM%KIDIA
+  IE = KDIM%KFDIA - KDIM%KIDIA
+  IG = KDIM%KSTGLO - 1 + KDIM%KIDIA
+
+  ! ULUND_TODO: ECE3 code still needed?
+  ! We cannot assume that ZSWR has been filled as TM5 might not be coupled,
+  ! so copy the TM5 code above here
+  !ZSWR (KIDIA:KFDIA) = 0.0_JPRB
+  !ZLWR (KIDIA:KFDIA) = 0.0_JPRB
+  !DO KT=1,KTILES
+  !  ZSWR (KIDIA:KFDIA) = ZSWR (KIDIA:KFDIA) + ZFRSOTI(KIDIA:KFDIA,KT) * ZFRTI(KIDIA:KFDIA,KT)
+  !  ZLWR (KIDIA:KFDIA) = ZLWR (KIDIA:KFDIA) + PFRTH(KIDIA:KFDIA,KLEV)* ZFRTI(KIDIA:KFDIA,KT)
+  !ENDDO
+  
+  CPLNG2_FLD(CPLNG2_IDX('T2MVeg'))%D(IG:IG+IE,1,1) = PSURF%PSD_VD(IL:IL+IE,YSD_VD%Y2T%MP)
+  CPLNG2_FLD(CPLNG2_IDX('SSRVeg'))%D(IG:IG+IE,1,1) = FLUX%PFRSOD(IL:IL+IE) ! PFRSO (net) and PFRSOD (down)
+  CPLNG2_FLD(CPLNG2_IDX('SLRVeg'))%D(IG:IG+IE,1,1) = FLUX%PFRTH(IL:IL+IE,KDIM%KLEV)
+
+  !CPLNG2_FLD(CPLNG2_IDX('SoilMVeg'))%D(IG:IG+IE,1:NDIM%KLEVS,1) = PWSA(KIDIA:KFDIA,1:KLEVS) ! ECE3
+  CPLNG2_FLD(CPLNG2_IDX('SoilMVeg'))%D(IG:IG+IE,1:KDIM%KLEVS,1) = PSURF%PSP_SB(IL:IL+IE,:,YDSURF%YSP_SB%YQ%MP9)
+
+  !CPLNG2_FLD(CPLNG2_IDX('SoilTVeg'))%D(IG:IG+IE,1:KLEVS,1) = PTSA(KIDIA:KFDIA,1:KLEVS) ! ECE3
+  CPLNG2_FLD(CPLNG2_IDX('SoilTVeg'))%D(IG:IG+IE,1:KDIM%KLEVS,1) = PSURF%PSP_SB(IL:IL+IE,:,YDSURF%YSP_SB%YT%MP9)
+
+  CPLNG2_FLD(CPLNG2_IDX('SDensVeg'))%D(IG:IG+IE,1,1) = SUM(PSURF%PSP_SG(IL:IL+IE, 1:KDIM%KLEVSN, YSP_SG%YR%MP9), DIM=2)
+  CPLNG2_FLD(CPLNG2_IDX('SDVeg'   ))%D(IG:IG+IE,1,1) = SUM(PSURF%PSP_SG(IL:IL+IE, 1:KDIM%KLEVSN, YSP_SG%YF%MP9), DIM=2)
+
+  CPLNG2_FLD(CPLNG2_IDX('TPVeg'))%D(IG:IG+IE,1,1) = &
+       &         FLUX%PFPLCL(IL:IL+IE,KDIM%KLEV) + FLUX%PFPLSL(IL:IL+IE,KDIM%KLEV) + &
+       &         FLUX%PFPLCN(IL:IL+IE,KDIM%KLEV) + FLUX%PFPLSN(IL:IL+IE,KDIM%KLEV)
+
+  ! Specific humidity, pressure and wind speed near the surface - needed by SIMFIRE-BLAZE
+  !CPLNG2_FLD(CPLNG2_IDX('SHUMVeg'))%D(IG:IG+IE,1,1) = PSURF%PQCFL(IL:IL+IE) ! old from oifs43r
+  CPLNG2_FLD(CPLNG2_IDX('SHUMVeg'))%D(IG:IG+IE,1,1) = PSURF%PCVL(IL:IL+IE)
+
+  CPLNG2_FLD(CPLNG2_IDX('PRESVeg'))%D(IG:IG+IE,1,1) = PAUX%PAPRS(IL:IL+IE,KDIM%KLEV) ! lowest level
+  CPLNG2_FLD(CPLNG2_IDX('WSPDVeg'))%D(IG:IG+IE,1,1) = SQRT(PSURF%PSD_VD(IL:IL+IE,YSD_VD%Y10U%MP)**2 &
+       &                                                 + PSURF%PSD_VD(IL:IL+IE,YSD_VD%Y10V%MP)**2 )
+
+  ! Pass t2m but minimum and maximum values of temperature will be calculated by OASIS-MCT
+  ! These are needed for SIMFIRE-BLAZE and BVOC calculations.
+  CPLNG2_FLD(CPLNG2_IDX('TMINVeg'))%D(IG:IG+IE,1,1) = PSURF%PSD_VD(IL:IL+IE,YSD_VD%Y2T%MP)
+  CPLNG2_FLD(CPLNG2_IDX('TMAXVeg'))%D(IG:IG+IE,1,1) = PSURF%PSD_VD(IL:IL+IE,YSD_VD%Y2T%MP)
+
+ENDIF
 ! ---------------------------------------------------------------------------------------
- 
+
 ! Output total physics tendencies (after stochastic physics)
 IF (LEXTRATEND) THEN
   CALL UPDATE_FIELDS(YDPHY2,1,KDIM%KIDIA,KDIM%KFDIA,KDIM%KLON,KDIM%KLEV,  &

@@ -107,7 +107,7 @@ USE DISGRID_MOD                   , ONLY : DISGRID_SEND, DISGRID_RECV
 USE GRIB_API_INTERFACE            , ONLY : IGRIB_OPEN_FILE, IGRIB_NEW_FROM_FILE, IGRIB_ERROR_MESSAGE,&
  &                                         JPGRIB_END_OF_FILE, JPGRIB_SUCCESS, IGRIB_GET_VALUE, IGRIB_RELEASE,&
  &                                         IGRIB_CLOSE_FILE, IGRIB_SET_VALUE
-
+USE ECEARTH  , ONLY : ECE_CPL_LPJG
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
@@ -1281,31 +1281,34 @@ DO JSTGLO = 1, NGPTOT, NPROMA
     ENDDO
   ENDIF
 
-!-- LAI Low/High grib codes 66, 67
-  DO JGRIBC = 66, 67
-    IPARMAL = -1
-    DO JCL = 1, ICLIM
-      IF (NCLIGC(JCL)==JGRIBC) THEN
-        IPARMAL = JCL
-        EXIT
-      ENDIF
-    ENDDO
-    IF (IPARMAL>0) THEN
-      DO JROF = 1, IEND
-        IF (LMCCIEC) THEN
-          ZTS = REAL(CLIMR(JSTGLO+JROF-1,NP1,IPARMAL),JPRB)*ZPOID1 + REAL(CLIMR(JSTGLO+JROF-1,NP2,IPARMAL),JPRB)*ZPOID2
-        ELSE
-          ZTS = REAL(CLIMR(JSTGLO+JROF-1,NP2,IPARMAL),JPRB)
-        ENDIF
+!-- LAI Low/High grib codes 66, 67 (only if LPJG isn't coupled)
+  IF (.NOT. ECE_CPL_LPJG) THEN
 
-        IF (JGRIBC==66) THEN
-          SD_VF(JROF,YSD_VF%YLAIL%MP,IBL) = ZTS
-        ELSEIF (JGRIBC==67) THEN
-          SD_VF(JROF,YSD_VF%YLAIH%MP,IBL) = ZTS
+    DO JGRIBC = 66, 67
+      IPARMAL = -1
+      DO JCL = 1, ICLIM
+        IF (NCLIGC(JCL)==JGRIBC) THEN
+          IPARMAL = JCL
+          EXIT
         ENDIF
       ENDDO
-    ENDIF
-  ENDDO
+      IF (IPARMAL>0) THEN
+        DO JROF = 1, IEND
+          IF (LMCCIEC) THEN
+            ZTS = REAL(CLIMR(JSTGLO+JROF-1,NP1,IPARMAL),JPRB)*ZPOID1 + REAL(CLIMR(JSTGLO+JROF-1,NP2,IPARMAL),JPRB)*ZPOID2
+          ELSE
+            ZTS = REAL(CLIMR(JSTGLO+JROF-1,NP2,IPARMAL),JPRB)
+          ENDIF
+
+          IF (JGRIBC==66) THEN
+            SD_VF(JROF,YSD_VF%YLAIL%MP,IBL) = ZTS
+          ELSEIF (JGRIBC==67) THEN
+            SD_VF(JROF,YSD_VF%YLAIH%MP,IBL) = ZTS
+          ENDIF
+        ENDDO
+      ENDIF
+    ENDDO
+  ENDIF
 
 
 ! For NEMO single executable coupling updates to ocean fields are now

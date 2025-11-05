@@ -40,6 +40,15 @@ SUBROUTINE ECE_UPDCLIE_CPL(YDGEOMETRY, YDSURF, YDMCC, YDDYNA, YDRIP, PTSTEP)
     REAL(KIND=JPRB) :: ZRTFREEZSICE, ZRCIMIN, ZPRTMELTSICE
     REAL(KIND=JPRB) :: ZTS, ZCI, ZTI
 
+    ! LPJ-GUESS variables and structures
+    REAL(KIND=JPRB) :: ZLAIL, ZLAIH, ZCVL, ZCVH, ZTVL, ZTVH, COVERSUM
+    REAL(KIND=JPRB),POINTER :: CPL_FLD_VEG_LAIL(:)
+    REAL(KIND=JPRB),POINTER :: CPL_FLD_VEG_LAIH(:)
+    REAL(KIND=JPRB),POINTER :: CPL_FLD_VEG_CVL(:)
+    REAL(KIND=JPRB),POINTER :: CPL_FLD_VEG_CVH(:)
+    REAL(KIND=JPRB),POINTER :: CPL_FLD_VEG_TVL(:)
+    REAL(KIND=JPRB),POINTER :: CPL_FLD_VEG_TVH(:)
+    INTEGER :: dbg_i, dbg_n, dbg_n_LAIH, dbg_n_LAIL, dbg_n_CVL, dbg_n_CVH
 
     IF (LHOOK) CALL DR_HOOK('ECE_UPDCLIE_CPL',0,ZHOOK_HANDLE)
 
@@ -76,6 +85,19 @@ SUBROUTINE ECE_UPDCLIE_CPL(YDGEOMETRY, YDSURF, YDMCC, YDDYNA, YDRIP, PTSTEP)
     IF (LNEMOLIMTEMP) THEN
       CPL_FLD_ICE_TEMP => CPLNG2_FLD(CPLNG2_IDX('A_Ice_temp'))%D(:,1,1)
     ENDIF
+
+    ! LPJ-GUESS coupling. Always receive fields when LPJ-GUESS is coupled
+    CALL CPLNG2_EXCHANGE(INT(PTSTEP,KIND=JPIM),ECE_CPL_STAGE_VEG_RCV,YDDYNA,YDRIP)
+
+    IF (ECE_CPL_LPJG) THEN
+      CPL_FLD_VEG_LAIL => CPLNG2_FLD(CPLNG2_IDX('LAILVeg'))%D(:,1,1)
+      CPL_FLD_VEG_LAIH => CPLNG2_FLD(CPLNG2_IDX('LAIHVeg'))%D(:,1,1)
+      CPL_FLD_VEG_CVL => CPLNG2_FLD(CPLNG2_IDX('FracLVeg'))%D(:,1,1)
+      CPL_FLD_VEG_CVH => CPLNG2_FLD(CPLNG2_IDX('FracHVeg'))%D(:,1,1)
+      CPL_FLD_VEG_TVL => CPLNG2_FLD(CPLNG2_IDX('TypeLVeg'))%D(:,1,1)
+      CPL_FLD_VEG_TVH => CPLNG2_FLD(CPLNG2_IDX('TypeHVeg'))%D(:,1,1)
+    ENDIF
+
     IF (LNEMOLIMCUR) THEN
       CPL_FLD_OUCURR  => CPLNG2_FLD(CPLNG2_IDX('A_CurX'))%D(:,1,1)
       CPL_FLD_OVCURR  => CPLNG2_FLD(CPLNG2_IDX('A_CurY'))%D(:,1,1)
@@ -147,6 +169,53 @@ SUBROUTINE ECE_UPDCLIE_CPL(YDGEOMETRY, YDSURF, YDMCC, YDDYNA, YDRIP, PTSTEP)
           ! this is ncessary because the open water fraction of lakes is represented
           ! by tile 1 in src/surf/module/surfbc_ctl_mod.F90
           SD_VF(JROF,YSD_VF%YSST%MP,IBL) = SP_SL(JROF,YSP_SL%YLMLT%MP,IBL)
+
+          IF (ECE_CPL_LPJG) THEN
+
+            ! Use LPJ-GUESS fields for land points that are NOT lakes.
+            ! Lake values are set to 0 in LPJG
+
+            ! LOW LAI
+            ZLAIL=MAX(0.0_JPRB,CPL_FLD_VEG_LAIL(JSTGLO+JROF-1))
+            SD_VF(JROF,YSD_VF%YLAIL%MP,IBL)=ZLAIL
+
+            ! HIGH LAI
+            ZLAIH=MAX(0.0_JPRB,CPL_FLD_VEG_LAIH(JSTGLO+JROF-1))
+            SD_VF(JROF,YSD_VF%YLAIH%MP,IBL)=ZLAIH
+
+            ! LOW COVER FRACTION
+            ZCVL=MAX(0.0_JPRB,MIN(1.0_JPRB,CPL_FLD_VEG_CVL(JSTGLO+JROF-1)))
+
+            ! HIGH COVER FRACTION
+            ZCVH=MAX(0.0_JPRB,MIN(1.0_JPRB,CPL_FLD_VEG_CVH(JSTGLO+JROF-1)))
+
+            COVERSUM = ZCVL + ZCVH
+            ! Rescale if necessary to catch rounding errors leading to cover
+            ! fractions > 1
+            IF (COVERSUM > 1._JPRB) THEN
+              ZCVL = ZCVL / COVERSUM
+              ZCVH = 1._JPRB - ZCVL ! Paul M / Lars N - better rescaling
+            ENDIF
+
+            ! UPDATE COVER FRACTIONS
+            SD_VF(JROF,YSD_VF%YCVL%MP,IBL)=ZCVL
+            SD_VF(JROF,YSD_VF%YCVH%MP,IBL)=ZCVH
+
+            ! LOW COVER TYPE. Restrict to be between 0 and 20
+            ZTVL=CPL_FLD_VEG_TVL(JSTGLO+JROF-1)
+            IF (ZTVL==8.0_JPRB) THEN
+              ZTVL=0.0_JPRB ! Force deserts to have ZTVL=0
+            ENDIF
+            SD_VF(JROF,YSD_VF%YTVL%MP,IBL)=MIN(MAX(ZTVL,0.0_JPRB),20.0_JPRB)
+
+            ! HIGH COVER TYPE. Restrict to be between 0 and 20
+            ZTVH=CPL_FLD_VEG_TVH(JSTGLO+JROF-1)
+            SD_VF(JROF,YSD_VF%YTVH%MP,IBL)=MIN(MAX(ZTVH,0.0_JPRB),20.0_JPRB)
+
+            ! If we need to check the values of the fields, uncomment:
+            ! WRITE (NULOUT, *) 'PaulM - LPJG coupling ', ZLAIL, ZLAIH, ZCVL, ZCVH, ZTVL, ZTVH
+
+          ENDIF ! Vegetation fields
 
         ENDIF ! LSM <= 0.5_JPRB
       ENDDO ! JROF = 1,IEND

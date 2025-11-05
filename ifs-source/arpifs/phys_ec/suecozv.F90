@@ -674,7 +674,7 @@ SUBROUTINE READ_NC_FILE_OZONE_CMIP7(CC,NLON1NC,NLAT1NC,NLV1NC,IYR1NC,IYEAR1NC,IY
     !    CMIP7 ozone has the same name and dimensions as CMIP6 so we could have re-used CMIP6 routines
     !    But it felt better to re-do it in case CMIP7 later upgrades to higher spatial or temporal resolution
     !
-    CHARACTER(LEN=150),INTENT(IN)    :: CC ! file to read
+    CHARACTER(LEN=*),INTENT(IN)      :: CC ! file to read
     INTEGER(KIND=JPIM),INTENT(IN)    :: NLON1NC, NLAT1NC ,NLV1NC ! nlon, nlat, nlev
     INTEGER(KIND=JPIM),INTENT(IN)    :: IYR1NC, NMONTH1NC ! year to read and number of months (usually 14 months)
     INTEGER(KIND=JPIM),INTENT(IN)    :: IYEAR1NC, IYEAR2NC ! first and last year of file
