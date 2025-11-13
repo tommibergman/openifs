@@ -204,7 +204,7 @@ IF (YDECMIP%NO3CMIP == 7) THEN ! read CMIP7 ozone data
   IFIL=LEN_TRIM(YDECMIP%CO3DATAFIL)
   CLFN=YDECMIP%CO3DATADIR(1:IDIR)//'/'//YDECMIP%CO3DATAFIL(1:IFIL)
   
-  WRITE(NULOUT,'("SUECOZV: READ IN CMIP7 OZONE DATA FROM FILE ",A)')CLFN
+  WRITE(NULOUT,'("SUECOZV: READ IN CMIP7 OZONE DATA FROM FILE ",A)') CLFN
   WRITE(NULOUT,'("SUECOZV: READ IN CMIP7 OZONE DATA DIMENSIONS ",4I4)') NLON1,NLAT1,NLV1,NMONTH1
   
   ! Read data from netCDF file. 
@@ -213,6 +213,14 @@ IF (YDECMIP%NO3CMIP == 7) THEN ! read CMIP7 ozone data
   ! But if it is the first or last year of the file, this is not possible so we just 
   ! repeat the first or last month. 
   CALL READ_NC_FILE_OZONE_CMIP7(CLFN, NLON1, NLAT1, NLV1, IYR, IYEAR1, IYEAR2, NMONTH1, YDECMIP%ZOZCL)
+
+  ! special for fixed year, replicate first and last month of the year
+  IF (NCMIPFIXYR > 0) THEN
+    YDECMIP%ZOZCL(:,:,:,0)=YDECMIP%ZOZCL(:,:,:,12)
+    YDECMIP%ZOZCL(:,:,:,13)=YDECMIP%ZOZCL(:,:,:,1)
+    LFIRSTYEAR=.FALSE.
+    LLASTYEAR=.FALSE.
+  ENDIF
   
   ! If we are reading the first year of the file, we also need the last month
   ! of the previous file
@@ -265,7 +273,7 @@ ELSE IF (YDECMIP%NO3CMIP == 6) THEN ! READ CMIP6 OZONE DATA
     CALL ABOR1('SUECOZV: UNABLE TO OPEN CMIP6 OZONE FORCING FILE')
   ENDIF
 
-  IF (IYR == 1850) THEN
+  IF (NCMIPFIXYR == 1850) THEN
 
     WRITE(YDECMIP%CO3DATAFIL,'(''o3_pi/vmro3_input4MIPs_ozone_CMIP6_UReading-CCMI_clim_'',I4.4,''.nc'')') IYR
 
@@ -583,9 +591,20 @@ SUBROUTINE FIND_NC_FILE_OZONE_CMIP7(IYR1, IYEAR1F, IYEAR2F, CC, LFIRSTYR, LLASTY
     CHARACTER(LEN=80),            INTENT(OUT)  :: CC                ! file name
     LOGICAL,                      INTENT(OUT)  :: LFIRSTYR, LLASTYR ! is it first or last year of file?
 
+    ! use climatology for piControl
+    IF (NCMIPFIXYR == 1850) THEN
+        CC='ozone/vmro3_input4MIPs_ozone_CMIP_FZJ-CMIP-ozone-1-2_gn_185001-185012-clim.nc'
+        IYEAR1F=1850
+        IYEAR2F=1850
+        LFIRSTYR=.FALSE.
+        LLASTYR=.FALSE.
+        WRITE(NULOUT,*) "SUECOZV: CC = ",TRIM(CC)
+        RETURN
+    ENDIF
+
     ! Determine which file to read
     ! CMIP7 files (so far) cover periods
-    ! 182901-184912
+    ! 182901-184912 (alternative that could be used for piControl)
     ! 185001-189912
     ! 190001-194912 
     ! 195001-199912 
@@ -648,9 +667,9 @@ SUBROUTINE FIND_NC_FILE_OZONE_CMIP7(IYR1, IYEAR1F, IYEAR2F, CC, LFIRSTYR, LLASTY
 
     ! set file name for historical ozone 
     ! if year1 = 1850 and year2 = 1899 we need to write 185001 and 189912 
-    WRITE(CC,'(''ozone/vmro3_input4MIPs_ozone_CMIP_FZJ-CMIP-ozone-1-0_gn_'',I6.6,''-'',I6.6,''.nc'')') &
+    WRITE(CC,'(''ozone/vmro3_input4MIPs_ozone_CMIP_FZJ-CMIP-ozone-1-2_gn_'',I6.6,''-'',I6.6,''.nc'')') &
             & IYEAR1F*100+1, IYEAR2F*100+12
-    WRITE(NULOUT,*) "SUECOZV: CC = ",CC
+    WRITE(NULOUT,*) "SUECOZV: CC = ",TRIM(CC)
 
 END SUBROUTINE FIND_NC_FILE_OZONE_CMIP7
 
