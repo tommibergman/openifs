@@ -40,7 +40,8 @@ SUBROUTINE CLOUDSC &
  & PFSQRF,   PFSQSF ,  PFCQRNG,  PFCQSNG, &
  & PFSQLTUR, PFSQITUR , &
  & PFPLSL,   PFPLSN,   PFHPSL,   PFHPSN, &
- & PEXTRA,   KFLDX)  
+ & PEXTRA,   KFLDX, &
+ & PAUX, YDRIP, PSURF, YDSURF)  
 
 !===============================================================================
 !**** *CLOUDSC* -  ROUTINE FOR PARAMETRIZATION OF CLOUD PROCESSES
@@ -170,11 +171,11 @@ USE YOECLDP  , ONLY : TECLDP, NCLDQV, NCLDQL, NCLDQR, NCLDQI, NCLDQS, NCLV
 USE YOEPHLI  , ONLY : TEPHLI
 USE YOERAD   , ONLY : TERAD
 USE YOEPHY   , ONLY : TEPHY
-USE PARKIND1 , ONLY : JPIM, JPRB
+USE PARKIND1 , ONLY : JPIM, JPIB, JPRB, JPRD
 USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMLUN   , ONLY : NULOUT
 USE YOMMP0   , ONLY : LSCMEC
-USE YOMCST   , ONLY : RG, RD, RCPD, RETV, RLVTT, RLSTT, RTT, RV, RA, RPI  
+USE YOMCST   , ONLY : RG, RD, RCPD, RETV, RLVTT, RLSTT, RTT, RV, RA, RPI, RDAY
 USE YOETHF   , ONLY : R2ES, R3LES, R3IES, R4LES, R4IES, R5LES, R5IES, &
  &                    R5ALVCP, R5ALSCP, RALVDCP, RALSDCP, RALFDCP, RTWAT, RTICE, RTICECU, &
  &                    RTWAT_RTICE_R, RTWAT_RTICECU_R, RKOOP1, RKOOP2
@@ -182,6 +183,19 @@ USE YOECUMF  , ONLY : TECUMF
 USE YOEVDF   , ONLY : TVDF
 USE SPP_MOD     , ONLY : TSPP_CONFIG
 USE SPP_GEN_MOD , ONLY : SPP_PERT
+
+!LMACV2SP
+USE ECE_CMIP       , ONLY : LMACV2SP, LMACV2SP_CCNF, NCMIPFIXYR
+USE AER_MACv2SP_MOD, ONLY : sp_aop_profile
+USE DAY_NUMBER_MOD , ONLY : NUMBER_OF_DAY       ! Routine to calculate DOY
+USE YOMRIP0        , ONLY : NINDAT              ! initial date of model run
+USE YOMRIP         , ONLY : TRIP                ! derived type of YDRIP (variables about time (e.g. YDRIP%NSTADD))
+USE YOMPHYDER      , ONLY : AUX_TYPE, SURF_AND_MORE_TYPE            ! derived type of PAUX (variable for height etc.)
+USE YOMCT3         , ONLY : NSTEP               ! Timestep counter (integer)
+USE YOMCT0         , ONLY : LNF                 ! If model start (.TRUE.) or restart (.FALSE.)
+USE YOMCT2         , ONLY : NSTAR2
+USE SURFACE_FIELDS_MIX , ONLY : TSURF
+
 
 IMPLICIT NONE
 
@@ -247,7 +261,7 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: PCLV(KLON,KLEV,NCLV) ! Cloud/precip prognost
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PLCRIT_AER(KLON,KLEV) ! critical liquid mmr for rain autoconversion process
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PICRIT_AER(KLON,KLEV) ! critical liquid mmr for snow autoconversion process
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PRE_ICE(KLON,KLEV)    ! ice effective radius
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PCCN(KLON,KLEV)       ! liquid cloud condensation nuclei
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PCCN(KLON,KLEV)       ! liquid cloud condensation nuclei
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PNICE(KLON,KLEV)      ! ice number concentration (cf. CCN) 
 ! Precipitation related
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PCOVPTOT(KLON,KLEV)   ! Precip fraction
@@ -271,6 +285,11 @@ REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFHPSN(KLON,KLEV+1) ! Enthalp flux for ice
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PEXTRA(KLON,KLEV,KFLDX) ! extra fields
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFLDX ! Number of extra fields
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFSD(KLON,KLEV) ! cloud condensate fractional standard deviation
+
+TYPE (AUX_TYPE)   , INTENT (IN)  :: PAUX
+TYPE (TRIP)       , INTENT (IN)  :: YDRIP
+TYPE(SURF_AND_MORE_TYPE), INTENT(INOUT) :: PSURF    ! various surface fields
+TYPE(TSURF)         ,INTENT(IN) :: YDSURF           ! surface field indices e.g AOD
 
 !-------------------------------------------------------------------------------
 !                       Declare local variables
@@ -592,6 +611,25 @@ REAL(KIND=JPRB) :: ZSINKSUM(KLON)
 REAL(KIND=JPRB) :: ZRATIO(KLON,NCLV), ZZRATIO, ZRAT, ZMAX
 REAL(KIND=JPRB) :: ZEPSILON
 
+
+! LMACV2SP
+REAL(KIND = JPRB)   :: ZGLAT(KLON)      , ZGLON(KLON)
+REAL(KIND = JPRB)   :: ZRPI, RWEEK, YEAR_FR
+INTEGER(KIND=JPIM)  :: IDY, IMN, IYR, IDOY
+REAL(KIND = JPRB)   :: AOD_MAC2SP(KLON, KLEV)
+REAL(KIND = JPRB)   :: SSA_MAC2SP(KLON, KLEV)
+REAL(KIND = JPRB)   :: ASY_MAC2SP(KLON, KLEV)
+REAL(KIND = JPRB)   :: ZMAC2SP_CDNC_FACTOR(KLON)
+REAL(KIND = JPRB)   :: ZAODTOT(KLON)     ! resulting AOD 550nm
+INTEGER(KIND=JPIM)  :: ILMONTH(12)
+INTEGER(KIND=JPIM)  :: IDY0, IMN0, IYR0, IWEEK, IFWEEK, WSTEP, IWSTEP
+INTEGER(KIND=JPIM)  :: ISTADD
+INTEGER(KIND=JPIB)  :: IZT, ITIME
+INTEGER(KIND=JPIM)  :: ILAMDA
+
+
+#include "fcttim.func.h"
+
 #include "cloud_supersatcheck.intfb.h"
 
 #include "abor1.intfb.h"
@@ -663,7 +701,8 @@ ASSOCIATE(LAERICEAUTO=>YDECLDP%LAERICEAUTO, LAERICESED=>YDECLDP%LAERICESED, &
  & RCL_INHOMOGAUT    => YDECLDP%RCL_INHOMOGAUT, &
  & RCL_INHOMOGACC    => YDECLDP%RCL_INHOMOGACC, &
  & RCL_OVERLAPLIQICE => YDECLDP%RCL_OVERLAPLIQICE, &
- & RCL_EFFRIME       => YDECLDP%RCL_EFFRIME )
+ & RCL_EFFRIME       => YDECLDP%RCL_EFFRIME, &
+ & YSD_VD            => YDSURF%YSD_VD )
 !===============================================================================
 
 
@@ -923,9 +962,71 @@ DO JK=1,KLEV
      ZANEWP(JL,JK)=0.0_JPRB
   ENDDO
 ENDDO
+
 !######################################################################
 !
-!             1.  *** INITIAL VALUES FOR VARIABLES ***
+!             1.1 *** Call MACv2-SP ***
+!
+!######################################################################
+
+IF (LMACV2SP) THEN
+    ! Initialisation of MACV2SP outputs arrays
+    ZMAC2SP_CDNC_FACTOR(1:KLON)= 1._JPRB
+    ZAODTOT(:) = 0._JPRB
+
+    IF(.NOT.LNF.AND.YDRIP%NSTADD == 0) THEN
+      ! IN CASE OF RESTART (LNF=.FALSE.):
+      !IF (YDDYNA%LTWOTL) THEN
+      !  IZT=NINT(YDRIP%TSTEP*(REAL(NSTAR2,JPRB)+0.5_JPRB), KIND=JPIB)
+      !ELSE
+        ITIME=NINT(YDRIP%TSTEP, KIND=JPIB)
+        IZT=ITIME*INT(NSTAR2, KIND=JPIB)
+      !ENDIF
+      ISTADD=INT(IZT/NINT(RDAY,KIND=JPIB), KIND=JPIM)
+    ELSE
+        ISTADD=YDRIP%NSTADD
+    ENDIF
+ 
+    IYR0=NCCAA(NINDAT)
+    IMN0=NMM(NINDAT)
+    IDY0=NDD(NINDAT)
+    CALL UPDCAL(IDY0,IMN0,IYR0, ISTADD, IDY, IMN, IYR, ILMONTH, NULOUT)
+
+    CALL NUMBER_OF_DAY(IDY, IMN, IYR, IDOY)
+
+    IF (NCMIPFIXYR>0) IYR=NCMIPFIXYR
+
+    ! Calculate fraction wrsp to a week
+    RWEEK=(REAL((IDOY+6), JPRB)/7._JPRB-1._JPRB)
+
+    ! Calculate fraction wrsp to a year (52 weeks)
+    YEAR_FR = IYR+RWEEK/52._JPRB
+
+    ZRPI = 1.0_JPRB/RPI
+    DO JL=KIDIA,KFDIA
+        ZGLAT(JL)= PAUX%PGELAT(JL) * 180._JPRB*ZRPI
+        ZGLON(JL)= PAUX%PGELAM(JL) * 180._JPRB*ZRPI
+    ENDDO
+
+    CALL sp_aop_profile(KLEV, KIDIA, KFDIA, KLON, 550._JPRB, ZGLON, ZGLAT, YEAR_FR, PAUX%PGEOMH, ZMAC2SP_CDNC_FACTOR, AOD_MAC2SP, SSA_MAC2SP, ASY_MAC2SP, ZAODTOT)
+    PSURF%PSD_VD(KIDIA:KFDIA,YSD_VD%YODTOACC%MP) = ZAODTOT(:)
+    PSURF%PSD_VD(KIDIA:KFDIA,YSD_VD%YODVSU%MP) = ZMAC2SP_CDNC_FACTOR(:)
+
+! Include indirect aerosol effect on cloud condensastion
+    IF (LMACV2SP_CCNF) THEN
+        DO JK=1,KLEV
+            DO JL=KIDIA,KFDIA
+                PCCN(JL,JK) = PCCN(JL,JK)*ZMAC2SP_CDNC_FACTOR(JL)
+            END DO
+        END DO
+    ENDIF
+
+ENDIF
+
+
+!######################################################################
+!
+!             1.2 *** INITIAL VALUES FOR VARIABLES ***
 !
 !######################################################################
 

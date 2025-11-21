@@ -97,6 +97,8 @@ USE YOMDYNCORE   , ONLY : RCORIOI, RPLRG
 USE YOMVERT      , ONLY : VP00
 USE YOEOPTSURF, ONLY : RVR0VT, RVCMAX25, RHUMREL, RA1, RB1, RG0, RGM25, RE_VCMAX, RE_JMAX
 
+USE ECE_CMIP     , ONLY : LMACV2SP
+USE AER_MACV2SP_MOD,  ONLY: SP_SETUP
 
 !     ------------------------------------------------------------------
 
@@ -399,7 +401,13 @@ ENDIF
 IF (LWCOU .AND. NFPOS/=2) CALL SUWAM(YDGEOMETRY,YDMODEL%YREWCOU)
 
 !     ------------------------------------------------------------------
+!*         15.   SETTING UP MACv2-SP aerosols
+!
 
+IF (LMACV2SP) THEN
+    WRITE(UNIT = KULOUT, FMT='('' Calling setup for MACv2-SP aerosol optical properties. '')')
+    CALL SP_SETUP
+ENDIF
 WRITE(UNIT=KULOUT,FMT='('' SUPHEC IS OVER '')')
 
 !     ------------------------------------------------------------------

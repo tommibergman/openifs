@@ -32,7 +32,9 @@ module radiation_aerosol
      ! (nband,istartlev:iendlev,ncol)
      real(jprb), allocatable, dimension(:,:,:) :: &
           &  od_sw, ssa_sw, g_sw, & ! Shortwave optical properties
-          &  od_lw, ssa_lw, g_lw    ! Longwave optical properties
+          &  od_lw, ssa_lw, g_lw, & ! Longwave optical properties
+          &  macv2sp_od_sw, macv2sp_ssa_sw, macv2sp_g_sw, & ! Shortwave optical properties
+          &  macv2sp_od_lw, macv2sp_ssa_lw, macv2sp_g_lw    ! Longwave optical properties
 
      ! Range of levels in which the aerosol properties are provided
      integer :: istartlev, iendlev
@@ -40,10 +42,13 @@ module radiation_aerosol
      ! Are the optical properties going to be provided directly by the
      ! user?
      logical :: is_direct = .false.
+     
+     logical :: lmacv2sp = .false.
 
    contains
      procedure :: allocate        => allocate_aerosol_arrays
      procedure :: allocate_direct => allocate_aerosol_arrays_direct
+     procedure :: allocate_macv2sp => allocate_aerosol_arrays_macv2sp
      procedure :: deallocate      => deallocate_aerosol_arrays
      procedure :: out_of_physical_bounds
   end type aerosol_type
@@ -116,6 +121,52 @@ contains
     if (lhook) call dr_hook('radiation_aerosol:allocate_direct',1,hook_handle)
 
   end subroutine allocate_aerosol_arrays_direct
+
+  !---------------------------------------------------------------------
+  ! Allocate arrays for describing aerosol optical properties
+  subroutine allocate_aerosol_arrays_macv2sp(this, config, &
+       &                                    ncol, istartlev, iendlev, ntype)
+
+    use yomhook,  only           : lhook, dr_hook, jphook
+    use radiation_config, only : config_type
+
+    class(aerosol_type), intent(inout) :: this
+    type(config_type),   intent(in)    :: config
+    integer, intent(in)                :: ncol  ! Number of columns
+    integer, intent(in)                :: istartlev, iendlev ! Level range
+    integer, intent(in)                :: ntype ! Number of aerosol types
+
+    real(jphook)                       :: hook_handle
+
+    if (lhook) call dr_hook('radiation_aerosol:allocate_macv2sp',0,hook_handle)
+
+    allocate(this%mixing_ratio(ncol,istartlev:iendlev,ntype))
+    this%is_direct   = .false.
+    this%lmacv2sp    = .true.
+    this%istartlev   = istartlev
+    this%iendlev     = iendlev
+
+    if (config%do_sw) then
+      allocate(this%macv2sp_od_sw (config%n_bands_sw,istartlev:iendlev,ncol))
+      allocate(this%macv2sp_ssa_sw(config%n_bands_sw,istartlev:iendlev,ncol))
+      allocate(this%macv2sp_g_sw  (config%n_bands_sw,istartlev:iendlev,ncol))
+    end if
+
+    if (config%do_lw) then
+      allocate(this%macv2sp_od_lw (config%n_bands_lw,istartlev:iendlev,ncol))
+      allocate(this%macv2sp_ssa_lw(config%n_bands_lw,istartlev:iendlev,ncol))
+      allocate(this%macv2sp_g_lw  (config%n_bands_lw,istartlev:iendlev,ncol))
+      ! If longwave scattering by aerosol is not to be represented,
+      ! then the user may wish to just provide absorption optical deth
+      ! in od_lw, in which case we must set the following two
+      ! variables to zero
+      this%macv2sp_ssa_lw = 0.0_jprb
+      this%macv2sp_g_lw = 0.0_jprb
+    end if
+
+    if (lhook) call dr_hook('radiation_aerosol:allocate_macv2sp',1,hook_handle)
+
+  end subroutine allocate_aerosol_arrays_macv2sp
 
 
   !---------------------------------------------------------------------

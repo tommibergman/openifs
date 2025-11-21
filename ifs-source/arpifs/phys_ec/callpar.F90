@@ -1371,7 +1371,7 @@ ELSEIF( LEPCLD ) THEN
    &               KDIM,LLSLPHY, PAUX, PPERT, STATE_T0, &
    &               TENDENCY_CML, TENDENCY_DYN, TENDENCY_VDF, &
    &               PRAD, PSURF, LLKEYS, AUXL, FLUX, PDIAG, &
-   &               YDVARS%FSD, TENDENCY_LOC)
+   &               YDVARS%FSD, TENDENCY_LOC, YDRIP)
 
 ELSE
 

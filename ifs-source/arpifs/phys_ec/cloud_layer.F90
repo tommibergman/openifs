@@ -16,7 +16,7 @@ SUBROUTINE CLOUD_LAYER( &
  ! Input/Output quantities
   & AUXL, FLUX, PDIAG, FSD, &
  ! Output tendencies
-  & TENDENCY_LOC)
+  & TENDENCY_LOC, YDRIP)
 
 !**** *CLOUD_LAYER* - Layer routine calling cloud scheme
 
@@ -92,6 +92,7 @@ USE YOMPHYDER          , ONLY : DIMENSION_TYPE, STATE_TYPE, AUX_TYPE, PERTURB_TY
  &                              SURF_AND_MORE_TYPE, AUX_DIAG_TYPE
 USE YOM_YGFL           , ONLY : TYPE_GFLD
 USE YOMPHY2            , ONLY : TPHY2
+USE YOMRIP             , ONLY : TRIP
 
 !-----------------------------------------------------------------------
 
@@ -123,6 +124,7 @@ TYPE (FLUX_TYPE)               , INTENT(INOUT) :: FLUX
 TYPE (AUX_DIAG_TYPE)           , INTENT(INOUT) :: PDIAG
 TYPE (VARIABLE_3D)             , INTENT(INOUT) :: FSD
 TYPE (STATE_TYPE)              , INTENT(INOUT) :: TENDENCY_LOC
+TYPE(TRIP)                     , INTENT(IN)    :: YDRIP
 !-----------------------------------------------------------------------
 INTEGER(KIND=JPIM) :: JRF, JL, JK
 REAL(KIND=JPRB)    :: ZGP2DSPP(KDIM%KLON, YDSPP_CONFIG%SM%NRFTOTAL)  !SPP pattern
@@ -188,7 +190,8 @@ CALL CLOUDSC &
   & FLUX%PFSQRF,   FLUX%PFSQSF ,  FLUX%PFCQRNG,  FLUX%PFCQSNG,&
   & FLUX%PFSQLTUR, FLUX%PFSQITUR , &
   & FLUX%PFPLSL,   FLUX%PFPLSN,   FLUX%PFHPSL,   FLUX%PFHPSN,&
-  & PSURF%PSD_XA, KDIM%KFLDX)  
+  & PSURF%PSD_XA, KDIM%KFLDX,&
+  & PAUX, YDRIP, PSURF, YDSURF)  
 
 IF(YDEPHY%LRAD_CLOUD_INHOMOG) THEN
   DO JK=1,KDIM%KLEV

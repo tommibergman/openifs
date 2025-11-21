@@ -2625,7 +2625,7 @@ USE PARKIND1  , ONLY : JPIM, JPRB
 USE EASY_NETCDF_READ_MPI,ONLY : NETCDF_FILE
 USE YOMHOOK   , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMLUN    , ONLY : NULERR
-USE ECE_CMIP  , ONLY : NCMIPFIXYR
+USE ECE_CMIP  , ONLY : NCMIPFIXYR, LMACV2SP
 
 
 IMPLICIT NONE
@@ -2654,12 +2654,15 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 #include "abor1.intfb.h"
 !     ------------------------------------------------------------------
-
 IF (LHOOK) CALL DR_HOOK('YOEAERC:SU_AER_CLIMATOLOGY',0,ZHOOK_HANDLE)
   IF ( NCMIPFIXYR == 1850 ) THEN
     CL_AER_CLIM_FILE = "IFS_aerosol_climatology_PI.nc"
   ELSE
-    CL_AER_CLIM_FILE = "aerosol_cams_climatology_43R3a.nc"
+    IF ( LMACV2SP ) THEN
+        CL_AER_CLIM_FILE = "IFS_aerosol_climatology_PI.nc"
+    ELSE
+        CL_AER_CLIM_FILE = "aerosol_cams_climatology_43R3a.nc"
+    ENDIF
   ENDIF
   CALL GET_ENVIRONMENT_VARIABLE("DATA",CLDIRECTORY)
   IF(CLDIRECTORY /= " ") THEN

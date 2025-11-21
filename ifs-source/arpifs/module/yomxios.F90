@@ -45,7 +45,7 @@ CHARACTER(LEN=16), PARAMETER :: gaussian_domain_name="reduced_gaussian"
 CHARACTER(LEN=7),  PARAMETER :: regular_domain_name="regular"
 
 ! Surface shortnames and grib codes
-INTEGER(KIND=JPIM), PARAMETER :: NSFCFLD=115
+INTEGER(KIND=JPIM), PARAMETER :: NSFCFLD=123
 CHARACTER (LEN=16),  PARAMETER :: CSFCFLD(NSFCFLD)=&
     &(/ 'sro             ', 'ssro            ', 'ci              ', 'asn             ', 'rsn             ', &
     &   'sstk            ', 'istl1           ', 'istl2           ', 'istl3           ', 'istl4           ', &
@@ -70,7 +70,9 @@ CHARACTER (LEN=16),  PARAMETER :: CSFCFLD(NSFCFLD)=&
     &   'licd            ', 'deg0l           ', 'tcrw            ', 'tcsw            ', '100u            ', &
     &   '100v            ', 'kx              ', 'totalx          ', &
     &   'tvl             ', 'cvl             ', 'lai_lv          ', &
-    &   'tvh             ', 'cvh             ', 'lai_hv          ', &
+    &   'tvh             ', 'cvh             ', 'lai_hv          ', 'macv2sp_taod550 ', 'aod550          ', &
+    &   'aod550ss        ', 'aod550du        ', 'aod550om        ', 'aod550bc        ', 'aod550su        ', &
+    &   'macv2sp_cdncf   ', &
     &   'lwcs            ' /)
 INTEGER(KIND=JPIM), PARAMETER :: IGRBSFCFLD(NSFCFLD)=&
     &(/                  8,                  9,                 31,                 32,                 33, &
@@ -96,7 +98,9 @@ INTEGER(KIND=JPIM), PARAMETER :: IGRBSFCFLD(NSFCFLD)=&
     &               228014,             228024,             228089,             228090,             228246, &
     &               228247,             260121,             260123, &
     &                   29,                 27,                 66, &
-    &                   30,                 28,                 67, &
+    &                   30,                 28,                 67,             215089,             210207, &
+    &               210208,             210209,             210210,             210211,             210212, &   ! AOD for diff. aerosol types
+    &               210243, &
     &               228038 /)
 
 ! 3D field shortnames and grib codes

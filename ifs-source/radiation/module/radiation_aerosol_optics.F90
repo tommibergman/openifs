@@ -71,7 +71,7 @@ contains
 
     use parkind1,                      only : jprb
     use radiation_io,                  only : nulout, nulerr, radiation_abort
-    use yomhook,  only           : lhook, dr_hook, jphook
+    use yomhook,                       only : lhook, dr_hook, jphook
     use radiation_config,              only : config_type
     use radiation_thermodynamics,      only : thermodynamics_type
     use radiation_gas,                 only : gas_type, IH2O, IMassMixingRatio
@@ -269,6 +269,13 @@ contains
 
           end do ! Loop over aerosol type
 
+          ! Here MACV2SP optical properties are added on top of the CAMS aerosol optical porperties
+          IF (aerosol%lmacv2sp) THEN
+              od_sw_aerosol        = od_sw_aerosol        + aerosol%macv2sp_od_sw(:,jlev,jcol)
+              scat_sw_aerosol      = scat_sw_aerosol      + aerosol%macv2sp_ssa_sw(:,jlev,jcol) * aerosol%macv2sp_od_sw(:,jlev,jcol)
+              scat_g_sw_aerosol    = scat_g_sw_aerosol    + aerosol%macv2sp_g_sw(:,jlev,jcol)  * aerosol%macv2sp_ssa_sw(:,jlev,jcol) * aerosol%macv2sp_od_sw(:,jlev,jcol)
+          ENDIF ! LMACV2SP
+
           if (.not. config%do_sw_delta_scaling_with_gases) then
             ! Delta-Eddington scaling on aerosol only.  Note that if
             ! do_sw_delta_scaling_with_gases==.true. then the delta
@@ -293,7 +300,7 @@ contains
               g_sw(jg,jlev,jcol) = scat_g_sw_aerosol(iband) / local_scat
               ssa_sw(jg,jlev,jcol) = local_scat / local_od
               od_sw (jg,jlev,jcol) = local_od
-            end do
+            end do ! jg
           end if
 
           ! Combine aerosol longwave scattering properties with gas
@@ -346,7 +353,7 @@ contains
 
     use parkind1,                      only : jprb
     use radiation_io,                  only : nulerr, radiation_abort
-    use yomhook,  only           : lhook, dr_hook, jphook
+    use yomhook,                       only : lhook, dr_hook, jphook
     use radiation_config,              only : config_type
     use radiation_aerosol,             only : aerosol_type
 
