@@ -24,7 +24,8 @@ MODULE AER_MACv2SP_MOD
   USE mpi
   USE ECPHYS_AUX_TYPE_MOD, ONLY : AUX_TYPE, KEYS_LOCAL_TYPE
   USE ECE_CMIP           , ONLY : LCMIP6, LCMIP7, CMIP7DATADIR, CMIP6DATADIR
-!  USE RADIATION_AEROSOL,        ONLY : AEROSOL_TYPE
+  USE YOMLUN             , ONLY : NULOUT
+  !  USE RADIATION_AEROSOL,        ONLY : AEROSOL_TYPE
 
   IMPLICIT NONE
 
@@ -86,7 +87,7 @@ CONTAINS
     IF (LCMIP7) THEN
         WRITE(MAC2SPFIL,*) TRIM(CMIP7DATADIR)//'/macv2sp/'//'SPv2.1_1850-2023_CMIP7.nc'
     ELSE
-        WRITE(MAC2SPFIL,*) TRIM(CMIP6DATADIR)//'/macv2sp/'//'SPv2_1850-2020_r20241218.nc'
+        WRITE(MAC2SPFIL,*) TRIM(CMIP6DATADIR)//'/'//'SPv2_1850-2020_r20241218.nc'
     END IF
     !
     ! ---------- 
@@ -94,8 +95,9 @@ CONTAINS
     IFIL = LEN_TRIM(MAC2SPFIL)
     MAC2SPFN = MAC2SPFIL(1:IFIL)
     
+    WRITE(NULOUT, *) "AER_MACv2SP_MOD: OPENING ",MAC2SPFN 
     iret = nf90_open(MAC2SPFN, NF90_NOWRITE, ncid)
-    IF (iret /= NF90_NOERR) STOP 'NetCDF File not opened'
+    IF (iret /= NF90_NOERR) STOP 'NetCDF File not opened: '//MAC2SPFN 
     !
     ! read dimensions and make sure file conforms to expected size
     !
