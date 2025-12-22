@@ -1,9 +1,9 @@
 MODULE SURFECE
-    ! Some logic switches for EC-Earth need to be available in surf. 
+    ! Some logic switches for EC-Earth need to be available in surf.
     ! As the main module ECEARTH is part of the later compiled arpifs,
     ! which depends on surf, we create this new module.
 
-    ! Authors: 
+    ! Authors:
     ! 2023-11-22: Jan Streffing (AWI): Created separate module from ECEARTH
 
     USE PARKIND1,ONLY : JPIM
@@ -23,6 +23,7 @@ MODULE SURFECE
     PUBLIC ECE_CPL_NEMO_WEIGHTED_ICE
     PUBLIC ECE_CPL_NEMO_CONSERVATIVE_HEATFLUX
     PUBLIC ECE_CPL_LPJG
+    PUBLIC ECE_CPL_ISMM
 
     LOGICAL :: LECEARTH = .TRUE.  ! Main EC-Earth flag, always true
 
@@ -32,8 +33,8 @@ MODULE SURFECE
 
     LOGICAL :: ECE_CPL_NEMO_WEIGHTED_ICE = .FALSE.
     LOGICAL :: ECE_CPL_NEMO_CONSERVATIVE_HEATFLUX = .FALSE.
-
     LOGICAL :: ECE_CPL_LPJG = .FALSE.
+    LOGICAL :: ECE_CPL_ISMM = .FALSE.
 
     NAMELIST /NAMECECFG/ ECE_CPL_AMIP
     NAMELIST /NAMECECFG/ ECE_CPL_NEMO_LIM
@@ -41,6 +42,7 @@ MODULE SURFECE
     NAMELIST /NAMECECFG/ ECE_CPL_NEMO_CONSERVATIVE_HEATFLUX
     NAMELIST /NAMECECFG/ ECE_CPL_LPJG
     NAMELIST /NAMECECFG/ ECE_CPL_FESOM_FESIM
+    NAMELIST /NAMECECFG/ ECE_CPL_ISMM
 
     LOGICAL :: ECE_CLIMR = .FALSE.
 

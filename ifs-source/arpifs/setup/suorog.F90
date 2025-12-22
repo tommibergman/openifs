@@ -54,6 +54,7 @@ SUBROUTINE SUOROG (YDGEOMETRY, PSPOR)
 !      M.Hamrud      01-Dec-2003 CY28R1 Cleaning
 !      T. Wilhelmsson (Sept 2013) Geometry and setup refactoring.
 !      R. El Khatib 14-May-2018 move allocations to sugeometry and merge initializations with sueorog
+!      J. Bernales   11-Dec-2025 Read ice sheet orography from external file (optional)
 !     ------------------------------------------------------------------
 
 USE PARKIND1 , ONLY : JPIM, JPRB
@@ -66,10 +67,16 @@ USE ATLAS_MODULE, ONLY : ATLAS_REAL, ATLAS_FIELD, ATLAS_MESH_NODES, &
 USE TYPE_GEOMETRY , ONLY : GEOMETRY
 USE YOMDYNA_STATIC  , ONLY : LGRADGP
 
+! Ice sheet coupling
+USE ECEARTH     , ONLY : ECE_CPL_ISMM
+USE YOMMP0      , ONLY : MYPROC
+USE DISGRID_MOD , ONLY : DISGRID_SEND, DISGRID_RECV
+USE NETCDF
+
 IMPLICIT NONE
 
 TYPE(GEOMETRY)  , INTENT(INOUT)    :: YDGEOMETRY
-REAL(KIND=JPRB) , INTENT(INOUT) :: PSPOR(YDGEOMETRY%YRDIM%NSPEC2) 
+REAL(KIND=JPRB) , INTENT(INOUT) :: PSPOR(YDGEOMETRY%YRDIM%NSPEC2)
 
 REAL(KIND=JPRB) , ALLOCATABLE :: ZU(:), ZSWORK(:)
 
@@ -85,7 +92,7 @@ REAL(KIND=JPRB) :: ZZOROGLM  (YDGEOMETRY%YRGEM%NGPTOT)
 INTEGER(KIND=JPIM),ALLOCATABLE :: IPA(:)
 REAL(KIND=JPRB), POINTER :: ZVAR(:,:)
 REAL(KIND=JPRB), POINTER :: ZGRAD(:,:,:)
-LOGICAL   , POINTER :: LLIS_GHOST(:)                                  
+LOGICAL   , POINTER :: LLIS_GHOST(:)
 TYPE(ATLAS_FIELD) :: GHOSTFIELD
 TYPE(ATLAS_FIELD) :: VARFIELD
 TYPE(ATLAS_FIELD) :: GRADFIELD
@@ -95,6 +102,14 @@ TYPE(ATLAS_FUNCTIONSPACE_NODECOLUMNS) :: NODE_COLUMNS
 INTEGER(KIND=JPIM) :: JL,IP,INODE_SIZE
 INTEGER(KIND=JPIM) :: JKGLO, IEND, IBL
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+
+! Ice sheet coupling
+INTEGER :: NCID_IN, VARID_USURF, IRET_NC, IRET_DUMMY
+REAL(KIND=JPRB) :: G2P
+REAL(KIND=JPRB), ALLOCATABLE :: ZGLOB_USURF(:)  ! Global GP buffer
+REAL(KIND=JPRB) :: ZLOC_USURF(YDGEOMETRY%YRGEM%NGPTOT)  ! Local GP buffer
+INTEGER(KIND=JPIM), PARAMETER :: RPRC = 1_JPIM  ! Root I/O task
+CHARACTER(LEN=*), PARAMETER :: ISM_FORCE = './grtes_pism2ece.nc'  ! [jorb@dmi.dk] Later wire namelist
 
 #include "fv_gradient.intfb.h"
 #include "reespe.intfb.h"
@@ -116,7 +131,7 @@ ASSOCIATE(NGPBLKS=>YDDIM%NGPBLKS, NPROMA=>YDDIM%NPROMA, NSPEC2=>YDDIM%NSPEC2, &
 IF (LELAM) THEN
 
 !*       1.1   PLANE GEOMETRY.
-  
+
   CALL SUEOROG (YDGEOMETRY, PSPOR, ZZOROG, ZZOROGL, ZZOROGM, ZZOROGLL, ZZOROGLM, ZZOROGMM)
 
 ELSE
@@ -125,10 +140,63 @@ ELSE
 
 !*       1.2.1   ALLOCATIONS.
 
-
 !*       1.2.2   INITIALIZE GRIDPOINT OROGRAPHY
 
   CALL SPEREE(YDGEOMETRY,1,1,PSPOR,ZZOROG)
+
+!*       1.2.2.1   ICE SHEET COUPLING
+
+  IF (ECE_CPL_ISMM) THEN
+
+    ! Prepare local buffers
+    ZLOC_USURF(:)  = 0._JPRB
+
+    ! Read ice sheet data
+    IF (MYPROC == RPRC) THEN
+      ! Prepare global buffers
+      ALLOCATE(ZGLOB_USURF(YDGEOMETRY%YRGEM%NGPTOTG))
+      ZGLOB_USURF(:) = 0._JPRB
+      ! Read NetCDF 'usurf' (metres) as a global GP vector
+      IRET_NC = nf90_open(TRIM(ISM_FORCE), NF90_NOWRITE, NCID_IN)
+      IF (IRET_NC == NF90_NOERR) THEN
+        IRET_NC = nf90_inq_varid(NCID_IN, 'usurf', VARID_USURF)
+        IF (IRET_NC == NF90_NOERR) THEN
+          ! Expect "2D" variable with dimensions "(1,NGPTOTG)".
+          ! Read count in inverse order due to Fortran "fastest-varying first" convention.
+          ! [jorb@dmi.dk] Later replace dimensions in input by simply "(cells)", as in OIFS netcdf output
+          IRET_NC = nf90_get_var(NCID_IN, VARID_USURF, ZGLOB_USURF, start=(/1,1/), count=(/YDGEOMETRY%YRGEM%NGPTOTG,1/))
+        END IF
+        IRET_DUMMY = nf90_close(NCID_IN)
+      END IF
+      ! Convert metres -> geopotential
+      IF (IRET_NC == NF90_NOERR) THEN
+        write(*,*) '>>> SUOROG: read NetCDF file'
+        G2P = 9.80665_JPRB ! [jorb@dmi.dk] Later check if a model-wide value/variable exists
+        ZGLOB_USURF(:) = ZGLOB_USURF(:) * G2P
+      ELSE
+        WRITE(*,*) '>>> SUOROG: ERROR reading ice sheet model orography: ', IRET_NC, TRIM(nf90_strerror(IRET_NC))
+        WRITE(*,*) '>>> SUOROG: Using unmodified orography...' ! [jorb@dmi.dk] Later change for a hard crash
+      END IF
+    END IF
+
+    ! Scatter global field to local buffers
+    IF (MYPROC == RPRC) THEN
+      CALL DISGRID_SEND(YDGEOMETRY, 1, ZGLOB_USURF, 1, ZLOC_USURF)
+    ELSE
+      CALL DISGRID_RECV(YDGEOMETRY, RPRC, 1, ZLOC_USURF, 1)
+    END IF
+
+    ! Replace only where positive (== ice sheet points)
+    WHERE (ZLOC_USURF > 0._JPRB) ZZOROG = ZLOC_USURF ! [jorb@dmi.dk]: Later replace by better condition to avoid snapbacks
+
+    ! Ensure full consistency between gridpoint and spectral fields
+    CALL REESPE(YDGEOMETRY,1,1,PSPOR,ZZOROG)
+    CALL SPEREE(YDGEOMETRY,1,1,PSPOR,ZZOROG) ! [jorb@dmi.dk] Later check if extra lapse-rate corrections are needed for new wiggles
+
+    ! De-allocate global buffer
+    IF (ALLOCATED(ZGLOB_USURF)) DEALLOCATE(ZGLOB_USURF)
+
+  END IF ! ECE_CPL_ISMM
 
 !*       1.2.3   COMPUTE FIRST ORDER DERIVATIVES OF OROGRAPHY.
 
@@ -136,7 +204,7 @@ ELSE
 
     ZDIV(:)=0.0_JPRB
     CALL SPEUV(YDGEOMETRY,ZDIV,PSPOR,ZZOROGL,ZZOROGM,1,1,2)
-    
+
   ELSE
 #ifdef WITH_ATLAS
     NODE_COLUMNS = YDGEOMETRY%YRATLAS%FVM%NODE_COLUMNS()
@@ -215,7 +283,7 @@ DO JKGLO=1,NGPTOT,NPROMA
   YDGEOMETRY%YROROG_B%OROGL(1:IEND,IBL)=ZZOROGL(JKGLO:JKGLO+IEND-1)
   YDGEOMETRY%YROROG_B%OROGM(1:IEND,IBL)=ZZOROGM(JKGLO:JKGLO+IEND-1)
 ENDDO
-  
+
 ! * horizontal second-order derivatives of orography:
 IF (YDGEOMETRY%LNONHYD_GEOM) THEN
   DO JKGLO=1,NGPTOT,NPROMA
