@@ -233,7 +233,7 @@ contains
 #endif
     use radiation_ifs_rrtm,       only : gas_optics
     use radiation_cloud_optics,   only : cloud_optics
-    use radiation_aerosol_optics, only : add_aerosol_optics
+    use radiation_aerosol_optics, only : add_aerosol_optics, add_aerosol_aod_ssa_asym
 
     ! Inputs
     integer, intent(in) :: ncol               ! number of columns
@@ -386,6 +386,12 @@ contains
           call add_aerosol_optics(nlev,istartcol,iendcol, &
                &  config, thermodynamics, gas, aerosol, & 
                &  od_lw, ssa_lw, g_lw, od_sw, ssa_sw, g_sw)
+
+          ! optical properties from aerosol model if provided
+          !call add_aerosol_aod_ssa_asym(ncol,nlev,istartcol,iendcol, &
+          !     &  config, aerosol, &
+          !     &  od_lw, ssa_lw, g_lw, od_sw, ssa_sw, g_sw)
+
         end if
       else
         g_sw = 0.0_jprb
@@ -561,6 +567,11 @@ contains
       call aerosol_rev%allocate(ncol, istartlev, iendlev, &
            &                    config%n_aerosol_types)
     end if
+    if (aerosol%is_direct) then
+      istartlev = nlev + 1 - aerosol%iendlev
+      iendlev   = nlev + 1 - aerosol%istartlev
+      call aerosol_rev%allocate_direct(config, ncol, istartlev, iendlev)
+    end if
 
     ! Fill reversed thermodynamic arrays
     thermodynamics_rev%pressure_hl(istartcol:iendcol,:) &
@@ -603,6 +614,20 @@ contains
       aerosol_rev%mixing_ratio(:,istartlev:iendlev,:) &
            &  = aerosol%mixing_ratio(:,aerosol%iendlev:aerosol%istartlev:-1,:)
     end if
+
+    if (allocated(aerosol%od_sw)) then
+      aerosol_rev%od_sw(:,istartlev:iendlev,:) &
+           &  = aerosol%od_sw(:,aerosol%iendlev:aerosol%istartlev:-1,:)
+    end if
+    if (allocated(aerosol%ssa_sw)) then
+      aerosol_rev%ssa_sw(:,istartlev:iendlev,:) &
+           &  = aerosol%ssa_sw(:,aerosol%iendlev:aerosol%istartlev:-1,:)
+    end if
+    if (allocated(aerosol%g_sw)) then
+      aerosol_rev%g_sw(:,istartlev:iendlev,:) &
+           &  = aerosol%g_sw(:,aerosol%iendlev:aerosol%istartlev:-1,:)
+    end if
+
 
     ! Run radiation scheme on reversed profiles
     call radiation(ncol, nlev,istartcol,iendcol, &
@@ -648,9 +673,7 @@ contains
     call gas_rev%deallocate
     call cloud_rev%deallocate
     call flux_rev%deallocate
-    if (allocated(aerosol%mixing_ratio)) then
-      call aerosol_rev%deallocate
-    end if
+    call aerosol_rev%deallocate
 
   end subroutine radiation_reverse
 

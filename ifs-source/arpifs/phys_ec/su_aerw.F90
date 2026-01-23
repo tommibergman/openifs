@@ -98,10 +98,10 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !      ----------------------------------------------------------------
 
 LOGICAL, POINTER :: LAERCLIMG, LAERCLIMZ, LAERCLIST, LAERDRYDP, LAERELVS,&
- & LAEREXTR, LAERGBUD, LAERHYGRO, LAERNGAT, LAERPRNT, &
+ & LAEREXTR, LAERGBUD, LAERHYGRO, LAERLISI, LAERNGAT, LAERPRNT, LAERSCAV, &
  & LAERSEDIM, LAERSURF, LAERGTOP, LAER6SDIA, LAERCCN, LAERSEDIMSS, &
- & LAERINIT, LAERCSTR, LAERRRTM, LAERDIAG1, LAERDIAG2, LAERUVP,&
- & LAERVOL, LEPAERO, LAEROMIN, LOCNDMS,&
+ & LAERINIT, LAERCSTR, LAERRRTM, LAERDIAG1, LAERDIAG2, LAERUVP, LUVINDX, &
+ & LAERVOL, LAERCALIP, LEPAERO, LAEROMIN, LOCNDMS ,LAERSCAV_CHEM,LAERSOA_CHEM, LDRYDEPVEL_DYN, &
  & LSEASALT_RH80, LAERDUSTSOURCE, LAERDUST_NEWBIN, LAERDUSTSIZEVAR
 
 INTEGER(KIND=JPIM), POINTER :: NAERCONF, NXT3DAER, NINIDAY, NBCOPTP,&
@@ -152,6 +152,7 @@ ALLOCATE(YDEAERATM%YAERO_DESC(YGFL%NACTAERO))
 ! Associate pointers for variables in namelist
 LAERCLIMG => YDEAERATM%LAERCLIMG
 NDRYDEPVEL_DYN=> YDEAERSNK%NDRYDEPVEL_DYN
+LDRYDEPVEL_DYN=> YDEAERSNK%LDRYDEPVEL_DYN
 LAERCLIMZ => YDEAERATM%LAERCLIMZ
 LAERCLIST => YDEAERATM%LAERCLIST
 LAERDRYDP => YDEAERATM%LAERDRYDP
@@ -163,8 +164,10 @@ RAERDUST_REBOUND => YDEAERATM%RAERDUST_REBOUND
 LAERDUST_NEWBIN=>YDEAERATM%LAERDUST_NEWBIN
 LAERDUSTSIZEVAR=>YDEAERATM%LAERDUSTSIZEVAR
 LAERHYGRO => YDEAERATM%LAERHYGRO
+LAERLISI  => YDEAERATM%LAERLISI
 LAERNGAT  => YDEAERATM%LAERNGAT
 LAERPRNT  => YDEAERATM%LAERPRNT
+LAERSCAV  => YDEAERATM%LAERSCAV
 LAERSEDIM => YDEAERATM%LAERSEDIM
 LAERSEDIMSS => YDEAERATM%LAERSEDIMSS
 LAERSURF  => YDEAERATM%LAERSURF
@@ -177,7 +180,9 @@ LAERRRTM  => YDEAERATM%LAERRRTM
 LAERDIAG1 => YDEAERATM%LAERDIAG1
 LAERDIAG2 => YDEAERATM%LAERDIAG2
 LAERUVP   => YDEAERATM%LAERUVP
+LUVINDX   => YDEAERATM%LUVINDX
 LAERVOL   => YDEAERATM%LAERVOL
+LAERCALIP => YDEAERATM%LAERCALIP
 NAERCONF  => YDEAERATM%NAERCONF
 NXT3DAER  => YDEAERATM%NXT3DAER
 NINIDAY   => YDEAERATM%NINIDAY
@@ -187,6 +192,8 @@ NOMOPTP   => YDEAERATM%NOMOPTP
 NSSOPTP   => YDEAERATM%NSSOPTP
 NSUOPTP   => YDEAERATM%NSUOPTP
 NVISWL    => YDEAERATM%NVISWL
+LAERSCAV_CHEM => YDEAERATM%LAERSCAV_CHEM
+LAERSOA_CHEM => YDEAERATM%LAERSOA_CHEM
 NAERSCAV => YDEAERATM%NAERSCAV
 LSEASALT_RH80=> YDEAERATM%LSEASALT_RH80
 NTYPAER   => YDEAERATM%NTYPAER
@@ -305,6 +312,9 @@ IF (NAERO == 0) THEN
   LAERGTOP =.FALSE.
   LAERHYGRO=.FALSE.
   LAERNGAT =.FALSE.
+  LAERSCAV=.FALSE.
+  LAERSCAV_CHEM =.FALSE.
+  LAERSOA_CHEM  =.FALSE.
   NAERSCAV = 0
   LAERDUSTSOURCE =.FALSE.
   LAERDUST_NEWBIN =.FALSE.
@@ -371,6 +381,58 @@ ELSE
 !-- define a default configuration that can be modified through the "naeaer" namelist
   CASE ("glomap")
     CALL ABOR1("OIFS - glomap should never be called from OIFS, EXIT")
+!-- define a default configuration that can be modified through the "naeaer" namelist
+  ! HAM-M7 only solves micro-physics, all other processes are handled
+  ! by the TM5-M7 routines. We therefore set all TM5-M7 switches, but
+  ! use HAM-M7-specific switches in the micro-physics routines.
+  CASE ("hamm7")
+
+  LEPAERO  =.FALSE.
+  LAERRAD  =.FALSE.
+
+  LAERCLIMG=.FALSE.
+  LAERCLIMZ=.FALSE.
+  LAERCLIST=.FALSE.
+
+  LAERDRYDP=.TRUE.
+  LAERGTOP =.TRUE.
+  LAERLISI =.FALSE.
+  LAERCALIP=.FALSE.
+  LAERNGAT =.TRUE.
+  LAERSCAV =.TRUE.
+  LAERSCAV_CHEM =.FALSE.
+  LAERSEDIM=.TRUE.
+  LAERSURF =.TRUE.
+  LAERELVS =.FALSE. 
+  LAER6SDIA=.FALSE.
+  LAERCCN  =.FALSE.
+  LAERCSTR =.FALSE.
+  LAERRRTM =.FALSE.
+  LAERUVP  =.FALSE. 
+  LUVINDX  =.FALSE.
+  LAERNITRATE = .FALSE.
+  LDRYDEPVEL_DYN=.FALSE.
+
+  REPSCAER=1.E-20_JPRB ! minimum value for AOD
+
+  !-- minimum oceanic production of DMS
+  RDMSMIN = 5.E-11_JPRB
+  NDMSO = 2
+  NPIST = 1
+  ! Various other settings may/may not be used, see scheme 'aer' below
+
+!-- default value are for use of "plain" or "gusty" 10-m wind as predictor for SS and DU 
+  NAERWND  = 2
+!--  other values would be: (see *aer_src*)
+!- NAERWND = 0 for "plain" 10-m wind as predictor for sea salt and desert dust emissions
+!- NAERWND = 1 for wind+gust in sea salt emission
+!- NAERWND = 2 for wind+gust in dust emission
+!- NAERWND = 3 for wind+gust in sea salt and dust emissions  
+  
+!-- Sulphate scheme  
+  NSO4SCHEME = 2
+  WRITE(UNIT=NULOUT,FMT='('' NAERWND= '',I1)') &
+   & NAERWND
 
 
   CASE ("aer")
@@ -473,7 +535,7 @@ ELSE
   RAERVOLE(:,:)=0._JPRB
   RVOLERUZ(:)= 1._JPRB
 
-  LAERINIT =.FALSE.
+  ! LAERINIT =.FALSE. -> RCHG FIXME (is this needed)
 
 !-- default value are for use of "plain" or "gusty" 10-m wind as predictor for SS and DU
   NAERWND  = 2
@@ -493,7 +555,7 @@ ELSE
 !           4 is Nabat et al 2012 with roughness length of smooth erodible
 !           surfaces
   NDDUST =3
-!-- Sulphate sceheme : 1 is operational
+!-- Sulphate scheme : 1 is operational
 !           2 is "mocage like" from MF J.Bock
   NSO4SCHEME = 1
   RAERDUB=1.E-11_JPRB   !  dust emission potential modulated by the areas' RDDUAER
