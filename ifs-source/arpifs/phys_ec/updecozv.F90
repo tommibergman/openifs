@@ -157,6 +157,8 @@ ENDIF
 !*         1.     TIME INDEX WITHIN OZONE CLIMATOLOGY
 !                 -----------------------
 
+! Apply fixed year override BEFORE range checks to avoid spurious warnings
+IF (NCMIPFIXYR>0) IYR=NCMIPFIXYR
 
 ! SET TIME INTERVAL
 IF (YDECMIP%NO3CMIP == 7) THEN ! CMIP7
@@ -168,7 +170,9 @@ IF (YDECMIP%NO3CMIP == 7) THEN ! CMIP7
     NLV1  = NLV1_CMIP7  
 
     IF (IYR < 1829) THEN
-        CALL ABOR1('IYR < 1829 not supported in CMIP7 ')
+        WRITE(NULOUT,*) "UPDECOZV: IYR < 1829 not supported in CMIP7. Will repeat 1829 for now..."
+        IYR=MAX(IYR,1829)
+        WRITE(NULOUT,*) "UPDECOZV: IYR = ",IYR 
     ENDIF
     IF (IYR > 2022) THEN
         WRITE(NULOUT,*) "UPDECOZV: IYR > 2022 not supported in CMIP7 (yet). Will repeat 2022 for now..."
@@ -200,7 +204,6 @@ ELSE
   WRITE(NULOUT,*)"NO3CMIP:",YDECMIP%NO3CMIP
   CALL ABOR1('UPDECOZV: Value of NO3CMIP not supported')
 ENDIF
-IF (NCMIPFIXYR>0) IYR=NCMIPFIXYR ! If using perpetual CMIP forcing
 
 !! rerun setup of ozv *if* current year is not that stored in YDECMIP
 ! Joakim: Also check if we want to read NCMIPFIXYR, but it is not what we have read before
