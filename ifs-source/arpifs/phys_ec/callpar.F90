@@ -1945,9 +1945,7 @@ IF (ECE_CPL_LPJG) THEN
        &         FLUX%PFPLCN(IL:IL+IE,KDIM%KLEV) + FLUX%PFPLSN(IL:IL+IE,KDIM%KLEV)
 
   ! Specific humidity, pressure and wind speed near the surface - needed by SIMFIRE-BLAZE
-  !CPLNG2_FLD(CPLNG2_IDX('SHUMVeg'))%D(IG:IG+IE,1,1) = PSURF%PQCFL(IL:IL+IE) ! old from oifs43r
-  CPLNG2_FLD(CPLNG2_IDX('SHUMVeg'))%D(IG:IG+IE,1,1) = PSURF%PCVL(IL:IL+IE)
-
+  CPLNG2_FLD(CPLNG2_IDX('SHUMVeg'))%D(IG:IG+IE,1,1) = PSURF%PSD_VD(IL:IL+IE,YSD_VD%Y2SH%MP)   ! B. Ingleby  2019-01-17 replace PSURF%PQCFL (oifs43r3) by PSURF%PSD_VD(:,YSD_VD%Y2SH%MP)
   CPLNG2_FLD(CPLNG2_IDX('PRESVeg'))%D(IG:IG+IE,1,1) = PAUX%PAPRS(IL:IL+IE,KDIM%KLEV) ! lowest level
   CPLNG2_FLD(CPLNG2_IDX('WSPDVeg'))%D(IG:IG+IE,1,1) = SQRT(PSURF%PSD_VD(IL:IL+IE,YSD_VD%Y10U%MP)**2 &
        &                                                 + PSURF%PSD_VD(IL:IL+IE,YSD_VD%Y10V%MP)**2 )
