@@ -3,6 +3,9 @@ MODULE suxios
 USE PARKIND1, ONLY : JPIM, JPRB
 USE yomxios
 USE xios
+USE YOMCT0, ONLY : NOUTPUT_XIOS
+USE YOMCT2, ONLY : NSTAR2
+USE YOMCT3, ONLY : NSTEP
 
 IMPLICIT NONE
 PRIVATE
@@ -355,7 +358,7 @@ END SUBROUTINE ifs_xios_set_domain
 SUBROUTINE ifs_xios_set_type_communication
 
   ! XIOS_FPOS extra logging
-  USE YOMLUN, ONLY : NULOUT
+  USE YOMLUN, ONLY : NULOUT  
 
   ! Setting whether using delayed (optimized) send or not
   IF (xios_getvar(lopt_send_var_name, LOPT_SEND)) THEN
@@ -470,6 +473,7 @@ SUBROUTINE suxios_namfpc_l(YDGEOMETRY,YDNAMFPL)
   CHARACTER(LEN=16) :: cgrb
   LOGICAL :: lpost = .false.
   REAL(KIND=8),ALLOCATABLE :: transfer_value_2d(:)
+  LOGICAL :: OUTPUT_XIOSFPOS
 
   !$OMP SINGLE
 
@@ -487,6 +491,8 @@ SUBROUTINE suxios_namfpc_l(YDGEOMETRY,YDNAMFPL)
   !! NFP3DFF=>YDNAMFPL%NFP3DFF, MFP3DFI=>YDNAMFPL%MFP3DFI, MFP3DFF=>YDNAMFPL%MFP3DFF
   !! CFP3DF=>YDNAMFPL%CFP3DF, CFPCFU=>YDNAMFPL%CFPCFU, CFPXFU=>YDNAMFPL%CFPXFU
   !! CFPPHY=>YDNAMFPL%CFPPHY
+
+  OUTPUT_XIOSFPOS = (NOUTPUT_XIOS .GE. 2) .OR. ((NOUTPUT_XIOS .GE. 1) .AND. (NSTAR2 .EQ. NSTEP))
 
   ! Set variables of 3D fields
   ! Model levels
@@ -547,16 +553,18 @@ SUBROUTINE suxios_namfpc_l(YDGEOMETRY,YDNAMFPL)
 #endif
       END IF
     END IF
-    WRITE(NULOUT, '(''XIOSFPOS: NFP3DFS IS'',I4)') NFP3DFS
-    DO i = 1, NFP3DFS
-      WRITE(NULOUT, '(''XIOSFPOS: MFP3DFS('',I4,'') IS'',I8)') i, MFP3DFS(i)
-    END DO
-    WRITE(NULOUT, '(''XIOSFPOS: NRFP3S LENGTH IS'',I4)') n_glo_ml
-    DO i = 1, n_glo_ml
-       WRITE(NULOUT, '(''XIOSFPOS: NRFP3S('',I4,'') IS'',I4)') i, NRFP3S(i)
-    END DO
+    IF (OUTPUT_XIOSFPOS) THEN
+      WRITE(NULOUT, '(''XIOSFPOS: NFP3DFS IS'',I4)') NFP3DFS
+      DO i = 1, NFP3DFS
+        WRITE(NULOUT, '(''XIOSFPOS: MFP3DFS('',I4,'') IS'',I8)') i, MFP3DFS(i)
+      END DO
+      WRITE(NULOUT, '(''XIOSFPOS: NRFP3S LENGTH IS'',I4)') n_glo_ml
+      DO i = 1, n_glo_ml
+        WRITE(NULOUT, '(''XIOSFPOS: NRFP3S('',I4,'') IS'',I4)') i, NRFP3S(i)
+      END DO
+    ENDIF
   ELSE
-    WRITE(NULOUT, '(''XIOSFPOS: MODEL LEVELS NOT USED'')')
+    IF (OUTPUT_XIOSFPOS) WRITE(NULOUT, '(''XIOSFPOS: MODEL LEVELS NOT USED'')')
   END IF
 
   ! Pressure levels
@@ -608,16 +616,18 @@ SUBROUTINE suxios_namfpc_l(YDGEOMETRY,YDNAMFPL)
 #endif
       END IF
     END IF
-    WRITE(NULOUT, '(''XIOSFPOS: NFP3DFP IS'',I4)') NFP3DFP
-    DO i = 1, NFP3DFP
-      WRITE(NULOUT, '(''XIOSFPOS: MFP3DFP('',I4,'') IS'',I8)') i, MFP3DFP(i)
-    END DO
-    WRITE(NULOUT, '(''XIOSFPOS: RFP3P LENGTH IS'',I4)') n_glo_pl
-    DO i = 1, n_glo_pl
-      WRITE(NULOUT, '(''XIOSFPOS: RFP3P('',I4,'') IS'',F10.1)') i, RFP3P(i)
-    END DO
+    IF (OUTPUT_XIOSFPOS) THEN
+      WRITE(NULOUT, '(''XIOSFPOS: NFP3DFP IS'',I4)') NFP3DFP
+      DO i = 1, NFP3DFP
+        WRITE(NULOUT, '(''XIOSFPOS: MFP3DFP('',I4,'') IS'',I8)') i, MFP3DFP(i)
+      END DO
+      WRITE(NULOUT, '(''XIOSFPOS: RFP3P LENGTH IS'',I4)') n_glo_pl
+      DO i = 1, n_glo_pl
+        WRITE(NULOUT, '(''XIOSFPOS: RFP3P('',I4,'') IS'',F10.1)') i, RFP3P(i)
+      END DO
+    END IF
   ELSE
-    WRITE(NULOUT, '(''XIOSFPOS: PRESSURE LEVELS NOT USED'')')
+    IF (OUTPUT_XIOSFPOS) WRITE(NULOUT, '(''XIOSFPOS: PRESSURE LEVELS NOT USED'')')
   END IF
 
   ! Theta levels
@@ -667,17 +677,18 @@ SUBROUTINE suxios_namfpc_l(YDGEOMETRY,YDNAMFPL)
         TLFLDBUF_DP = HUGE(TLFLDBUF_SP)
 #endif
       END IF
+      IF (OUTPUT_XIOSFPOS) THEN
+        WRITE(NULOUT, '(''XIOSFPOS: NFP3DFT IS'',I4)') NFP3DFT
+        DO i = 1, NFP3DFT
+          WRITE(NULOUT, '(''XIOSFPOS: MFP3DFT('',I4,'') IS'',I8)') i, MFP3DFT(i)
+        END DO
+        WRITE(NULOUT, '(''XIOSFPOS: RFP3TH LENGTH IS'',I4)') n_glo_th
+        DO i = 1, n_glo_th
+          WRITE(NULOUT, '(''XIOSFPOS: RFP3TH('',I4,'') IS'',F8.1)') i, RFP3TH(i)
+        END DO
+      END IF
     END IF
-    WRITE(NULOUT, '(''XIOSFPOS: NFP3DFT IS'',I4)') NFP3DFT
-    DO i = 1, NFP3DFT
-      WRITE(NULOUT, '(''XIOSFPOS: MFP3DFT('',I4,'') IS'',I8)') i, MFP3DFT(i)
-    END DO
-    WRITE(NULOUT, '(''XIOSFPOS: RFP3TH LENGTH IS'',I4)') n_glo_th
-    DO i = 1, n_glo_th
-      WRITE(NULOUT, '(''XIOSFPOS: RFP3TH('',I4,'') IS'',F8.1)') i, RFP3TH(i)
-    END DO
-  ELSE
-    WRITE(NULOUT, '(''XIOSFPOS: THETA LEVELS NOT USED'')')
+    IF (OUTPUT_XIOSFPOS) WRITE(NULOUT, '(''XIOSFPOS: THETA LEVELS NOT USED'')')
   END IF
 
   ! PV levels
@@ -727,17 +738,19 @@ SUBROUTINE suxios_namfpc_l(YDGEOMETRY,YDNAMFPL)
         VLFLDBUF_DP = HUGE(VLFLDBUF_SP)
 #endif
       END IF
+      IF (OUTPUT_XIOSFPOS) THEN
+        WRITE(NULOUT, '(''XIOSFPOS: NFP3DFV IS'',I4)') NFP3DFV
+        DO i = 1, NFP3DFV
+          WRITE(NULOUT, '(''XIOSFPOS: MFP3DFV('',I4,'') IS'',I8)') i, MFP3DFV(i)
+        END DO
+        WRITE(NULOUT, '(''XIOSFPOS: RFP3PV LENGTH IS'',I4)') n_glo_pv
+        DO i = 1, n_glo_pv
+          WRITE(NULOUT, '(''XIOSFPOS: RFP3PV('',I4,'') IS'',F12.8)') i, RFP3PV(i)
+        END DO
+      END IF
     END IF
-    WRITE(NULOUT, '(''XIOSFPOS: NFP3DFV IS'',I4)') NFP3DFV
-    DO i = 1, NFP3DFV
-      WRITE(NULOUT, '(''XIOSFPOS: MFP3DFV('',I4,'') IS'',I8)') i, MFP3DFV(i)
-    END DO
-    WRITE(NULOUT, '(''XIOSFPOS: RFP3PV LENGTH IS'',I4)') n_glo_pv
-    DO i = 1, n_glo_pv
-      WRITE(NULOUT, '(''XIOSFPOS: RFP3PV('',I4,'') IS'',F12.8)') i, RFP3PV(i)
-    END DO
   ELSE
-    WRITE(NULOUT, '(''XIOSFPOS: PV LEVELS NOT USED'')')
+    IF (OUTPUT_XIOSFPOS) WRITE(NULOUT, '(''XIOSFPOS: PV LEVELS NOT USED'')')
   END IF
 
   ! Height levels
@@ -797,13 +810,15 @@ SUBROUTINE suxios_namfpc_l(YDGEOMETRY,YDNAMFPL)
     END IF
   END DO
 
-  IF (NFPPHY > 0) THEN
-    WRITE(NULOUT, '(''XIOSFPOS: NFPPHY IS'',I4)') NFPPHY
-    DO i = 1, NFPPHY
-      WRITE(NULOUT, '(''XIOSFPOS: MFPPHY('',I4,'') IS'',I8)') i, MFPPHY(i)
-    END DO
-  ELSE
-    WRITE(NULOUT, '(''XIOSFPOS: SURFACE PHYSICAL FIELDS NOT USED'')')
+  IF (OUTPUT_XIOSFPOS) THEN
+    IF (NFPPHY > 0) THEN
+      WRITE(NULOUT, '(''XIOSFPOS: NFPPHY IS'',I4)') NFPPHY
+      DO i = 1, NFPPHY
+        WRITE(NULOUT, '(''XIOSFPOS: MFPPHY('',I4,'') IS'',I8)') i, MFPPHY(i)
+      END DO
+    ELSE
+      WRITE(NULOUT, '(''XIOSFPOS: SURFACE PHYSICAL FIELDS NOT USED'')')
+    END IF
   END IF
 
   ! Set 2D dynamical fields
@@ -829,15 +844,14 @@ SUBROUTINE suxios_namfpc_l(YDGEOMETRY,YDNAMFPL)
     END IF
   ELSE
     WRITE(NULOUT, '(''XIOSFPOS WARNING:'',A16,'' SURFACE DYNAMICAL FIELD NOT DEFINED IN IODEF.XML'')') TRIM('lnsp')
-  END IF
-
-  IF (NFP2DF > 0) THEN
-    WRITE(NULOUT, '(''XIOSFPOS: NFP2DF IS'',I4)') NFP2DF
-    DO i = 1, NFP2DF
-      WRITE(NULOUT, '(''XIOSFPOS: MFP2DF('',I4,'') IS'',I8)') i, MFP2DF(i)
-    END DO
-  ELSE
-    WRITE(NULOUT, '(''XIOSFPOS: SURFACE DYNAMICAL FIELDS NOT USED'')')
+    IF (NFP2DF > 0) THEN
+      WRITE(NULOUT, '(''XIOSFPOS: NFP2DF IS'',I4)') NFP2DF
+      DO i = 1, NFP2DF
+        WRITE(NULOUT, '(''XIOSFPOS: MFP2DF('',I4,'') IS'',I8)') i, MFP2DF(i)
+      END DO
+    ELSE
+      WRITE(NULOUT, '(''XIOSFPOS: SURFACE DYNAMICAL FIELDS NOT USED'')')
+    END IF
   END IF
 
   ! Allocating XIOS buffer for surface fields

@@ -41,5 +41,5 @@ NAMELIST/NAMCT0/LFDBOP,LFBDAP &
               &,NFRCORM,LSFORC,LSFORCS,LCALLSFX,LSFXLSM,CMETER,CEVENT &
               &,LWRSPECA_GP,LSUSPECA_GP,LWRSPECA_GP_UV,LSUSPECA_GP_UV &
               &,LGRIB_API,LCOUPLO4, L4DVAR, L_OOPS, NITER_ADTEST,LCONSERV,LCORWAT &
-              &,LXIOS
+              &,LXIOS, NOUTPUT_XIOS
 !     ------------------------------------------------------------------
