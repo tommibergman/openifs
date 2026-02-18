@@ -143,6 +143,8 @@ SUBROUTINE ifs_xios_set_calendar(YDMODEL)
   TYPE(MODEL), INTENT(IN) :: YDMODEL
 
   INTEGER(KIND=JPIM) :: year, month, day, hours, minutes, seconds
+  INTEGER(KIND=JPIM) :: refyear, refmonth, refday, refhours, refminutes, refseconds
+  INTEGER(KIND=JPIM) :: startyear, startmonth, startday, starthours, startminutes, startseconds
   LOGICAL :: lexist
   CHARACTER (LEN=20) :: time_origin_str, start_date_str, time_step_str, duration_from_origin_str
 
@@ -170,7 +172,18 @@ SUBROUTINE ifs_xios_set_calendar(YDMODEL)
   minutes = (NSSSSS - hours*3600)/60
   seconds = NSSSSS - hours*3600 - minutes*60
 
-  time_origin = xios_date(year, month, day, hours, minutes, seconds)
+  !time_origin = xios_date(year, month, day, hours, minutes, seconds)
+  ! If reference date/time is defined in context_oifs, 
+  ! use that instead
+  IF (.NOT.(xios_getvar('ref_year'   ,refyear )))   refyear = year
+  IF (.NOT.(xios_getvar('ref_month'  ,refmonth)))   refmonth = month
+  IF (.NOT.(xios_getvar('ref_day'    ,refday  )))   refday   = day
+  IF (.NOT.(xios_getvar('ref_hours'  ,refhours  ))) refhours = hours
+  IF (.NOT.(xios_getvar('ref_minutes',refminutes))) refminutes = minutes
+  IF (.NOT.(xios_getvar('ref_seconds',refseconds))) refseconds = seconds 
+
+  time_origin = xios_date(refyear,  refmonth,   refday, &
+              &           refhours, refminutes, refseconds)
 
   ! Time origin of the time axis. It will appear as meta-data attached to the time axis in the output file
   CALL xios_set_time_origin(time_origin=time_origin)
@@ -193,10 +206,23 @@ SUBROUTINE ifs_xios_set_calendar(YDMODEL)
     start_date = time_origin
     nstep_from_origin = 0
   END IF
-
+  
+  ! If start date/time is defined in context_oifs, 
+  ! use that instead
+  IF ( xios_getvar('start_year'   ,startyear   ) .AND. & 
+     & xios_getvar('start_month'  ,startmonth  ) .AND. &
+     & xios_getvar('start_day'    ,startday    ) .AND. & 
+     & xios_getvar('start_hours'  ,starthours  ) .AND. &
+     & xios_getvar('start_minutes',startminutes) .AND. & 
+     & xios_getvar('start_seconds',startseconds) ) THEN
+     
+     start_date = xios_date(startyear,  startmonth,   startday, &
+                &           starthours, startminutes, startseconds)
+  ENDIF    
+  
   ! Start date of the simulation for the current context
   CALL xios_set_start_date(start_date=start_date)
-
+  
   CALL xios_date_convert_to_string(time_origin, time_origin_str)
   CALL xios_date_convert_to_string(start_date, start_date_str)
   CALL xios_duration_convert_to_string(time_step, time_step_str)
