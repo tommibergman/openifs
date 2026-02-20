@@ -91,7 +91,8 @@ ASSOCIATE(RETV=>YDCST%RETV, &
  & NVTILES=>YDVEG%NVTILES, NVTYPES=>YDVEG%NVTYPES, RCEPSW=>YDVEG%RCEPSW, &
  & RCVC=>YDVEG%RCVC, REPEVAP=>YDVEG%REPEVAP, REPSR=>YDVEG%REPSR, &
  & RLAIINT=>YDVEG%RLAIINT, RLHAERO=>YDVEG%RLHAERO, RLHAEROS=>YDVEG%RLHAEROS, &
- & RVINTER=>YDVEG%RVINTER, RVLT=>YDVEG%RVLT, RVRAD=>YDVEG%RVRAD)
+ & RVINTER=>YDVEG%RVINTER, RVLT=>YDVEG%RVLT, RVRAD=>YDVEG%RVRAD, &
+ & RVVEGALB=>YDVEG%RVVEGALB)
 
 ! Number of vegetation types
 NVTYPES=20
@@ -373,6 +374,35 @@ RCVC=240._JPRB
 RVLT=4._JPRB
 RVRAD  =0.5_JPRB
 REPSR  =1.E-10_JPRB
+
+! Albedo
+
+IF(.NOT.ALLOCATED(YDVEG%RVVEGALB)) ALLOCATE(YDVEG%RVVEGALB(0:IVTYPES,4))
+
+! Regression+Rechid parameters
+YDVEG%RVVEGALB(0:20,:) = transpose(reshape((/ &
+ & 0.0000, 0.0000, 0.0000, 0.0000, &
+ & 0.0265, 0.0341, 0.2848, 0.3210, &      ! Crops, Mixed Farming
+ & 0.0378, 0.0552, 0.2509, 0.3054, &      ! Short Grass
+ & 0.0121, 0.0145, 0.2046, 0.2202, &      ! Evergreen Needleleaf Trees
+ & 0.0126, 0.0153, 0.2134, 0.2288, &      ! Deciduous Needleleaf Trees
+ & 0.0130, 0.0170, 0.2308, 0.2582, &      ! Deciduous Broadleaf Trees
+ & 0.0097, 0.0132, 0.2096, 0.2389, &      ! Evergreen Broadleaf Trees
+ & 0.0248, 0.0359, 0.2226, 0.2692, &      ! Tall Grass
+ & 0.0000, 0.0000, 0.0000, 0.0000, &      ! Desert
+ & 0.0183, 0.0238, 0.2574, 0.2724, &      ! Tundra
+ & 0.0250, 0.0296, 0.2572, 0.2790, &      ! Irrigated Crops
+ & 0.0529, 0.0865, 0.2045, 0.2900, &      ! Semidesert
+ & 0.0000, 0.0000, 0.0000, 0.0000, &      ! Ice Caps and Glaciers
+ & 0.0252, 0.0288, 0.1966, 0.2088, &      ! Bogs and Marshes
+ & 0.0000, 0.0000, 0.0000, 0.0000, &      ! Inland Water
+ & 0.0000, 0.0000, 0.0000, 0.0000, &      ! Ocean
+ & 0.0570, 0.0633, 0.2093, 0.2309, &      ! Evergreen Shrubs
+ & 0.0520, 0.0652, 0.2377, 0.2766, &      ! Deciduous Shrubs
+ & 0.0135, 0.0166, 0.2194, 0.2417, &      ! Mixed Forest/woodland
+ & 0.0067, 0.0102, 0.2427, 0.2759, &      ! Interrupted Forest
+ & 0.0000, 0.0000, 0.0000, 0.0000  &      ! Water and Land Mixtures
+            /), (/4,21/)  ))
 
 END ASSOCIATE
 IF (LHOOK) CALL DR_HOOK('SUSVEG_MOD:SUSVEG',1,ZHOOK_HANDLE)

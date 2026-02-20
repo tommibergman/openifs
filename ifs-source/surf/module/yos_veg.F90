@@ -50,6 +50,8 @@ LOGICAL         :: LEAGS                     ! True when using CTESSEL scheme fo
 LOGICAL         :: LEFARQUHAR                ! True when using Farquhar photosynthesis model
 LOGICAL         :: LEAIRCO2COUP              ! True when using variable atmospheric CO2 in photosynthesis
 LOGICAL         :: LFACO2BIOFLUX             ! True when rescaling CO2 biogenic fluxes based on opt.flux clim budget
+
+REAL(KIND=JPRB),ALLOCATABLE :: RVVEGALB(:,:) ! parameters for computing ALBEDO from vegetation types
 END TYPE TVEG
 
 END MODULE YOS_VEG

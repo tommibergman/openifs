@@ -311,6 +311,10 @@ TYPE TYPE_SFL_VARSF
   TYPE(TYPE_SURF_MTL_2D), POINTER :: YLAIL =>NULL()  ! low vegetation LAI
   TYPE(TYPE_SURF_MTL_2D), POINTER :: YLAIH =>NULL()  ! high vegetation LAI
   TYPE(TYPE_SURF_MTL_2D), POINTER :: YSOTY =>NULL()  ! soil type
+  TYPE(TYPE_SURF_MTL_2D),POINTER :: YSOALUVP =>NULL() ! soil albedo vis/uv direct
+  TYPE(TYPE_SURF_MTL_2D),POINTER :: YSOALUVD =>NULL() ! soil albedo vis/uv diffuse
+  TYPE(TYPE_SURF_MTL_2D),POINTER :: YSOALNIP =>NULL() ! soil albedo nir direct
+  TYPE(TYPE_SURF_MTL_2D),POINTER :: YSOALNID =>NULL() ! soil albedo nir diffuse
   TYPE(TYPE_SURF_MTL_2D), POINTER :: YCLK  =>NULL()  ! lake cover
   TYPE(TYPE_SURF_MTL_2D), POINTER :: YDL   =>NULL()  ! lake depth
   TYPE(TYPE_SURF_MTL_2D), POINTER :: YCI   =>NULL()  ! sea ice fraction

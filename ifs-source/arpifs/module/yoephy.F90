@@ -160,6 +160,9 @@ LOGICAL :: LFPOS_ACC_RESET
 ! Required to set up GFL variable to carry FSD from cloudsc to radiation
 LOGICAL :: LRAD_CLOUD_INHOMOG
 
+! Using bare soil albedo
+LOGICAL :: LRDALB = .FALSE. 
+
 ! YSURF :  Pointer to surface package configuration
 
 TYPE(C_PTR) :: YSURF
