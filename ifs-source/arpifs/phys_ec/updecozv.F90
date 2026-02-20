@@ -169,9 +169,9 @@ IF (YDECMIP%NO3CMIP == 7) THEN ! CMIP7
     NLAT1 = NLAT1_CMIP7
     NLV1  = NLV1_CMIP7  
 
-    IF (IYR < 1829) THEN
-        WRITE(NULOUT,*) "UPDECOZV: IYR < 1829 not supported in CMIP7. Will repeat 1829 for now..."
-        IYR=MAX(IYR,1829)
+    IF (IYR < 1850) THEN
+        WRITE(NULOUT,*) "UPDECOZV: IYR < 1850 not supported in CMIP7 ozone v2.0. Will repeat 1850 for now..."
+        IYR=MAX(IYR,1850)
         WRITE(NULOUT,*) "UPDECOZV: IYR = ",IYR 
     ENDIF
     IF (IYR > 2022) THEN

@@ -595,7 +595,7 @@ SUBROUTINE FIND_NC_FILE_OZONE_CMIP7(IYR1, IYEAR1F, IYEAR2F, CC, LFIRSTYR, LLASTY
     CHARACTER(LEN=80),            INTENT(OUT)  :: CC                ! file name
     LOGICAL,                      INTENT(OUT)  :: LFIRSTYR, LLASTYR ! is it first or last year of file?
 
-    ! use climatology for piControl
+    ! use pre-computed 1850 mean climatology for piControl (v1.2)
     IF (NCMIPFIXYR == 1850) THEN
         CC='ozone/vmro3_input4MIPs_ozone_CMIP_FZJ-CMIP-ozone-1-2_gn_185001-185012-clim.nc'
         IYEAR1F=1850
@@ -607,17 +607,12 @@ SUBROUTINE FIND_NC_FILE_OZONE_CMIP7(IYR1, IYEAR1F, IYEAR2F, CC, LFIRSTYR, LLASTY
     ENDIF
 
     ! Determine which file to read
-    ! CMIP7 files (so far) cover periods
-    ! 182901-184912 (alternative that could be used for piControl)
+    ! CMIP7 ozone v2.0 files cover periods
     ! 185001-189912
     ! 190001-194912 
     ! 195001-199912 
     ! 200001-202212 
-    ! For piControl (or any fixed year) we just repeat
     SELECT CASE ( IYR1 )
-        CASE ( 1829:1849 ) ! 1829 <= IYR <= 1849 
-            IYEAR1F = 1829
-            IYEAR2F = 1849
         CASE ( 1850:1899 ) ! 1850 <= IYR <= 1899
             IYEAR1F = 1850
             IYEAR2F = 1899
@@ -640,7 +635,7 @@ SUBROUTINE FIND_NC_FILE_OZONE_CMIP7(IYR1, IYEAR1F, IYEAR2F, CC, LFIRSTYR, LLASTY
         CASE DEFAULT       ! else: not included in historical forcing
             ! todo: add scenarios as they become available later
             WRITE(NULOUT,*) "SUECOZV: Can not find ozone data for year ",IYR1
-            WRITE(NULOUT,*) "SUECOZV: CMIP7 ozone only works for years 1829-2022 "  
+            WRITE(NULOUT,*) "SUECOZV: CMIP7 ozone v2.0 only works for years 1850-2022 "  
             CALL ABOR1("SUECOZV: No CMIP7 ozone data found ")
     END SELECT
     
@@ -650,8 +645,7 @@ SUBROUTINE FIND_NC_FILE_OZONE_CMIP7(IYR1, IYEAR1F, IYEAR2F, CC, LFIRSTYR, LLASTY
     LFIRSTYR = .FALSE.
     LLASTYR  = .FALSE.
     
-    IF ( IYR1 == 1849 .OR. &
-       & IYR1 == 1899 .OR. &
+    IF ( IYR1 == 1899 .OR. &
        & IYR1 == 1949 .OR. &
        & IYR1 == 1999 .OR. &
        & IYR1 == 2022 ) THEN
@@ -671,7 +665,7 @@ SUBROUTINE FIND_NC_FILE_OZONE_CMIP7(IYR1, IYEAR1F, IYEAR2F, CC, LFIRSTYR, LLASTY
 
     ! set file name for historical ozone 
     ! if year1 = 1850 and year2 = 1899 we need to write 185001 and 189912 
-    WRITE(CC,'(''ozone/vmro3_input4MIPs_ozone_CMIP_FZJ-CMIP-ozone-1-2_gn_'',I6.6,''-'',I6.6,''.nc'')') &
+    WRITE(CC,'(''ozone/vmro3_input4MIPs_ozone_CMIP_FZJ-CMIP-ozone-2-0_gn_'',I6.6,''-'',I6.6,''.nc'')') &
             & IYEAR1F*100+1, IYEAR2F*100+12
     WRITE(NULOUT,*) "SUECOZV: CC = ",TRIM(CC)
 
