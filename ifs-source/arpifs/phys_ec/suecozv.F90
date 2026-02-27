@@ -83,7 +83,7 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: KINDAT
 !*       0.2   LOCAL ARRAYS.
 !              -------------
 
-INTEGER(KIND=JPIM) :: JK, JL, JI, JM, IYR
+INTEGER(KIND=JPIM) :: JK, JL, JI, JM, IYR, IYRR
 
 INTEGER(KIND=JPIM) :: I, IUNIT, IDIR, IFIL
 LOGICAL            :: LLIS_OPEN
@@ -225,12 +225,19 @@ IF (YDECMIP%NO3CMIP == 7) THEN ! read CMIP7 ozone data
   ! If we are reading the first year of the file, we also need the last month
   ! of the previous file
   IF (LFIRSTYEAR) THEN
-      WRITE(NULOUT,*) "SUECOZV: Reading previous year ",IYR-1
+      ! If we start in 1850, we need to read 1849 which does not exist
+      ! Read 1850 instead
+      IF (IYR == 1850) THEN
+          IYRR = 1850
+      ELSE
+          IYRR=IYR-1
+      ENDIF
+      WRITE(NULOUT,*) "SUECOZV: Reading year ",IYRR
       ALLOCATE(ZOZO_DATA(NLON1, NLAT1, NLV1, 0:NMONTH1-1))
-      CALL FIND_NC_FILE_OZONE_CMIP7(IYR-1, IYEAR1, IYEAR2, ZO3DATAFIL, LFIRSTYEAR, LLASTYEAR)
+      CALL FIND_NC_FILE_OZONE_CMIP7(IYRR, IYEAR1, IYEAR2, ZO3DATAFIL, LFIRSTYEAR, LLASTYEAR)
       IFIL=LEN_TRIM(ZO3DATAFIL) 
       CLFN=YDECMIP%CO3DATADIR(1:IDIR)//'/'//ZO3DATAFIL(1:IFIL)  
-      CALL READ_NC_FILE_OZONE_CMIP7(CLFN, NLON1, NLAT1, NLV1, IYR-1, IYEAR1, IYEAR2, NMONTH1, ZOZO_DATA)
+      CALL READ_NC_FILE_OZONE_CMIP7(CLFN, NLON1, NLAT1, NLV1, IYRR, IYEAR1, IYEAR2, NMONTH1, ZOZO_DATA)
       ! Put time index 12 (Dec) of previous year at index 0 (Dec)
       YDECMIP%ZOZCL(:,:,:,12) = ZOZO_DATA(:,:,:,0)
       DEALLOCATE(ZOZO_DATA)  
