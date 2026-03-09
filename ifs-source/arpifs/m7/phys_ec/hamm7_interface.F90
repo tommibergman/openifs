@@ -525,6 +525,7 @@ ASSOCIATE( &
          & NXT3DAER       => YREAERATM%NXT3DAER,                   & 
          & LAERRRTM       => YREAERATM%LAERRRTM,                   &       
          & REPSCAER       => YREAERATM%REPSCAER,                   &         
+         & RSIGMA_W       => YREAERATM%RSIGMA_W,                   &         
          ! --- YRERAD ----------------------------------------------
          & LAERVISI       => YRERAD%LAERVISI,                      &
          & NTSW           => YRERAD%NTSW,                          &
@@ -957,7 +958,7 @@ ENDDO
     CLDACT: IF ( NCLOUDACT == 1 ) THEN ! Morales and Nenes
        
        !IF ( LCONSIGW ) THEN !eehol: if using the constant sigma_w it is set to 0.8 otherwise use the TKE to calculate (NOT USED YET!)
-       ZSIGMA_W(KIDIA:KFDIA,1:KLEV) = 0.8_JPRB
+       ZSIGMA_W(KIDIA:KFDIA,1:KLEV) = RSIGMA_W
        !ELSE
        !   ZSIGMA_W(KIDIA:KFDIA,1:KLEV)= MAX(0.1_JPRB, (ZTUNPAR*((ZTKEM1(KIDIA:KFDIA,1:KLEV))**0.5_JPRB))) ! m/s
        !END IF
@@ -982,7 +983,7 @@ ENDDO
     ELSE IF (NCLOUDACT == 2) THEN ! AR&G scheme
 
        !IF ( LCONSIGW ) THEN !eehol: if using the constant sigma_w it is set to 0.8 otherwise use the TKE to calculate (NOT USED YET!!)
-       ZTKEM1(KIDIA:KFDIA,1:KLEV) = ((1/ZTUNPAR)**2)*((0.8_JPRB)**2) !eehol: this is converted back to sigma_w in mo_activ.F90
+       ZTKEM1(KIDIA:KFDIA,1:KLEV) = ((1/ZTUNPAR)**2)*((RSIGMA_W)**2) !eehol: this is converted back to sigma_w in mo_activ.F90
        !ELSE
        !   ZTKEM1(KIDIA:KFDIA,1:KLEV) = ZTKEM1(KIDIA:KFDIA,1:KLEV)
        !END IF
