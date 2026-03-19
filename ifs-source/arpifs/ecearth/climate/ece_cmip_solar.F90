@@ -59,7 +59,7 @@ SUBROUTINE ECE_CMIP_SOLAR(YEAR, MONTH, YDERDI)
   REAL(KIND=JPRB), SAVE :: ZSOLMONTH(5400)
 
   INTEGER(KIND=JPIM), PARAMETER  :: MPITAG = 12345
-  INTEGER(KIND=JPIM) :: I, IUNIT, IYR
+  INTEGER(KIND=JPIM) :: I, IUNIT, IYR, IYREF, ISIZE
   REAL(KIND=JPRB)    :: SKIP
   CHARACTER(LEN=132) :: SKIP_LINE
 
@@ -108,19 +108,33 @@ SUBROUTINE ECE_CMIP_SOLAR(YEAR, MONTH, YDERDI)
       END IF
 
     ELSEIF (LCMIP7) THEN
-      IF (LLFIRSTCALL) THEN
-        ! version of CMIP7 forcing dataset
-        FILENAME = TRIM(CMIP7DATADIR)//'/solar/multiple_input4MIPs_solar_CMIP_SOLARIS-HEPPA-CMIP-4-6_gn'
-        IF (NCMIPFIXYR == 1850) THEN
-          FILENAME = TRIM(FILENAME)//'.nc'
-          ALLOCATE (CMIP7_TSI(1))
-        ELSE
-          FILENAME = TRIM(FILENAME)//'_185001-202312.nc'
-          ALLOCATE (CMIP7_TSI(2088))
-        END IF
 
+      IYR = YEAR
+      IF (NCMIPFIXYR > 0) IYR = NCMIPFIXYR
+      IF (IYR > 2299) IYR = 2299 - 10 + MODULO(IYR - 2300, 11) ! Repeat last solar cycle data after 2299
+
+      ! CMIP7 forcing dataset
+      ! - Note historical and scenario files overlap over 2022-2023
+      ! 
+      FILENAME = TRIM(CMIP7DATADIR)//'/solar/multiple_input4MIPs_solar_'
+      IF (NCMIPFIXYR == 1850 .OR. IYR < 1850) THEN
+        FILENAME = TRIM(FILENAME)//'CMIP_SOLARIS-HEPPA-CMIP-4-6_gn.nc'
+        ISIZE = 1
+        IYREF = 0
+      ELSE IF (IYR >= 1850 .AND. IYR <= 2022)
+        FILENAME = TRIM(FILENAME)//'CMIP_SOLARIS-HEPPA-CMIP-4-6_gn_185001-202312.nc'
+        ISIZE = 2088
+        IYREF = 1850
+      ELSE IF (IYR >= 2023)
+        FILENAME = TRIM(FILENAME)//'ScenarioMIP_SOLARIS-HEPPA-ScenarioMIP-4-6_gn_202201-229912.nc'
+        ISIZE = 3336
+        IYREF = 2022
+      END IF
+
+      IF (LLFIRSTCALL) THEN
+        ALLOCATE (CMIP7_TSI(ISIZE))
         IF (MYPROC == 1) THEN
-          WRITE (NULOUT, '(A)') 'ECE_CMIP_SOLAR read file:', trim(filename)
+          WRITE (NULOUT, '(A)') 'ECE_CMIP_SOLAR read file:', TRIM(FILENAME)
           CALL CHECKGHG(NF90_OPEN(FILENAME, NF90_NOWRITE, IUNIT))
           CALL CHECKGHG(NF90_INQ_VARID(IUNIT, 'tsi', TSI_VARID))
           CALL CHECKGHG(NF90_GET_VAR(IUNIT, TSI_VARID, CMIP7_TSI))
@@ -132,21 +146,11 @@ SUBROUTINE ECE_CMIP_SOLAR(YEAR, MONTH, YDERDI)
         LLFIRSTCALL = .FALSE.
       END IF
 
-      IYR = YEAR
-      IF (NCMIPFIXYR > 0) IYR = NCMIPFIXYR
-
-      ! use perpetual year 1850 or year 2023?
-      IF (IYR < 1850 .OR. IYR > 2023) THEN
-        WRITE (NULOUT, '(A,I4)') 'stop in ece_cmip_solar: no tsi for year', IYR
-        WRITE (NULOUT, '(A)') 'stop in ece_cmip_solar: no support (yet) for years outside 1850-2023'
-        CALL ABOR1('ECE_CMIP_SOLAR: IYR outside 1850-2023')
-      END IF
-
       ! piControl uses annual mean, otherwise monthly
-      IF (NCMIPFIXYR == 1850) THEN
+      IF (NCMIPFIXYR == 1850 .OR. IYR < 1850) THEN
         I = 1
       ELSE
-        I = (IYR - 1850)*12 + MONTH
+        I = (IYR - IYREF)*12 + MONTH
       END IF
       RSOLINC = CMIP7_TSI(I)
     END IF
