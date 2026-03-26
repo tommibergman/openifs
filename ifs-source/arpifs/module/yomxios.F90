@@ -45,7 +45,7 @@ CHARACTER(LEN=16), PARAMETER :: gaussian_domain_name="reduced_gaussian"
 CHARACTER(LEN=7),  PARAMETER :: regular_domain_name="regular"
 
 ! Surface shortnames and grib codes
-INTEGER(KIND=JPIM), PARAMETER :: NSFCFLD=126
+INTEGER(KIND=JPIM), PARAMETER :: NSFCFLD=131
 CHARACTER (LEN=16),  PARAMETER :: CSFCFLD(NSFCFLD)=&
     &(/ 'sro             ', 'ssro            ', 'ci              ', 'asn             ', 'rsn             ', &
     &   'sstk            ', 'istl1           ', 'istl2           ', 'istl3           ', 'istl4           ', &
@@ -74,7 +74,8 @@ CHARACTER (LEN=16),  PARAMETER :: CSFCFLD(NSFCFLD)=&
     &   'lwcs            ', &
     &   'aod550          ', 'aodabs550       ', 'asymmetry550    ', 'ssa550          ', &
     &   'aod550ss        ', 'aod550du        ', 'aod550om        ', 'aod550bc        ', 'aod550su        ', &
-    &   'macv2sp_cdncf   ', 'macv2sp_taod550 ' /)
+    &   'macv2sp_cdncf   ', 'macv2sp_taod550 ', &
+    &   'co2of           ', 'co2nbf          ', 'co2apf          ', 'co2fire         ', 'tcco2           '/)
 INTEGER(KIND=JPIM), PARAMETER :: IGRBSFCFLD(NSFCFLD)=&
     &(/                  8,                  9,                 31,                 32,                 33, &
     &                   34,                 35,                 36,                 37,                 38, &
@@ -103,20 +104,23 @@ INTEGER(KIND=JPIM), PARAMETER :: IGRBSFCFLD(NSFCFLD)=&
     &               228038, &
     &               210207,             215104,             215158,             215140, &
     &               210208,             210209,             210210,             210211,             210212, &   ! AOD for diff. aerosol types
-    &               210243,             215089 /)
+    &               210243,             215089, &
+    &               210067,             210068,             210069,             210080,             210064  /)
 
 ! 3D field shortnames and grib codes
-INTEGER(KIND=JPIM), PARAMETER :: N3DFLD=20
+INTEGER(KIND=JPIM), PARAMETER :: N3DFLD=21
 CHARACTER (LEN=16), PARAMETER :: C3DFLD(N3DFLD)=&
     &(/ 'pt              ', 'mont            ', 'pres            ', 'pv              ', 'crwc            ', &
     &   'cswc            ', 'etadot          ', 'z               ', 't               ', 'u               ', &
     &   'v               ', 'q               ', 'w               ', 'vo              ', 'd               ', &
-    &   'r               ', 'o3              ', 'clwc            ', 'ciwc            ', 'cc              '/)
+    &   'r               ', 'o3              ', 'clwc            ', 'ciwc            ', 'cc              ', &
+    &   'co2             '/)
 INTEGER(KIND=JPIM), PARAMETER :: IGRB3DFLD(N3DFLD)=&
     &(/                  3,                 53,                 54,                 60,                 75, &
     &                   76,                 77,                129,                130,                131, &
     &                  132,                133,                135,                138,                155, &
-    &                  157,                203,                246,                247,                248/)
+    &                  157,                203,                246,                247,                248, &
+    &               210061/)
 
 ! 3D PEXTRA fields ids and grib codes
 INTEGER(KIND=JPIM), PARAMETER :: NPEXTRAFLD=24

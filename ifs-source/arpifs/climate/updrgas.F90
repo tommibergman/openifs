@@ -65,7 +65,7 @@ TYPE(TDYNA),     INTENT(IN)           :: YDDYNA
 TYPE(TERAD),     INTENT(IN)           :: YDERAD ! Configuration information
 TYPE(TERDI),     INTENT(INOUT)        :: YDERDI ! Output gas concentrations
 TYPE(TRIP),      INTENT(IN)           :: YDRIP  ! Time information
-REAL(KIND=JPRB), INTENT(IN), OPTIONAL :: PSOLINC ! Solar contant
+REAL(KIND=JPRB), INTENT(IN), OPTIONAL :: PSOLINC ! Solar constant
 
 REAL(KIND=JPRB) :: ZCO2    , ZCH4    , ZN2O    , ZNO2    , ZCFC11    , ZCFC12,     ZHCFC22,     ZCCL4
 REAL(KIND=JPRB) :: ZCO2RMWG, ZCH4RMWG, ZN2ORMWG, ZNO2RMWG, ZCFC11RMWG, ZCFC12RMWG, ZHCFC22RMWG, ZCCL4RMWG

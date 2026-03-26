@@ -25,7 +25,7 @@ SUBROUTINE RADINTG(YDGEOMETRY, YDMODEL,KLEV  , KMODE,                          &
            & PEMIT , PTH   , PFRTED, PTRSOD, PTRSODC, PEMTDC,                  &
            & PSUDU , PUVDF , PPARF , PPARCF, PTINCF,                           &
            & PFDIR , PCDIR , PLWDERIVATIVE,                                    &
-           & PRE_LIQ, PRE_ICE )
+           & PRE_LIQ, PRE_ICE, PCO2TR )
 
 !**** *RADINTG* - RADIATION INTERFACE TO ACTUAL RADIATION SCHEME
 
@@ -258,7 +258,8 @@ REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFDIR(YDGEOMETRY%YRGEM%NGPTOT) ,PCDIR(YDGEOM
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PLWDERIVATIVE(YDGEOMETRY%YRGEM%NGPTOT,KLEV+1)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PRE_LIQ(YDGEOMETRY%YRGEM%NGPTOT,KLEV) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PRE_ICE(YDGEOMETRY%YRGEM%NGPTOT,KLEV) 
-
+! Optional argument for 3D CO2 tracer
+REAL(KIND=JPRB)   ,INTENT(IN),OPTIONAL :: PCO2TR(YDGEOMETRY%YRGEM%NGPTOT,KLEV)
 
 !     ------------------------------------------------------------------
 
@@ -517,7 +518,6 @@ ASSOCIATE(&
 
 !*       1.    PREPARATORY WORK
 !              ----------------
-
 
 ZEPSILON=1000._JPRB*TINY(ZEPSILON)
 
@@ -1461,9 +1461,25 @@ DO JSTGLO=1,RADGRID%NGPTOT,NRPROMA
     ZRGP(1:IL,IC22:IC22+KLEV-1,IB) = RCFC22
     ZRGP(1:IL,ICL4:ICL4+KLEV-1,IB) = RCCL4
 
-    IF(NGHGRAD == 1 .OR. NGHGRAD >= 10) THEN
+! -- Use 3D CO2 tracer if available (if it is passed to the routine it is enabled)
+    IF (PRESENT(PCO2TR)) THEN
+      ! Use 3D prognostic CO2 tracer
+      ZRGP(1:IL,ICO2:ICO2+KLEV-1,IB) = PCO2TR(1:IL,1:KLEV)
+      ! Diagnostic output for 3D CO2 tracer usage (only from first processor and first block)
+      IF (MYPROC == 1 .AND. IB == 1) THEN
+        WRITE(NULOUT,'(A)') ' RADINTG: *** USING 3D CO2 TRACER FIELD FOR RADIATION CALCULATIONS ***'
+        WRITE(NULOUT,'(A,F8.2,A,F8.2,A)') ' RADINTG: CO2 tracer range - Min: ', &
+          & MINVAL(PCO2TR(1:IL,1:KLEV) * (28.9647_JPRB/44.0095_JPRB) * 1.0E6_JPRB), ' Max: ', &
+          & MAXVAL(PCO2TR(1:IL,1:KLEV) * (28.9647_JPRB/44.0095_JPRB) * 1.0E6_JPRB), ' ppmv'
+      ENDIF
+! -- Use greenhouse gas module CO2 if no tracer override
+    ELSEIF(NGHGRAD == 1 .OR. NGHGRAD >= 10) THEN
       ZRGP(1:IL,ICO2:ICO2+KLEV-1,IB) = ZQCO2(1:IL,1:KLEV)
+      IF (MYPROC == 1 .AND. IB == 1) THEN
+        WRITE(NULOUT,'(A)') ' RADINTG: *** USING GHG MODULE CO2 FOR RADIATION CALCULATIONS ***'
+      ENDIF
     ENDIF
+! -- other GHG
     IF(NGHGRAD == 2 .OR. NGHGRAD >= 11) THEN
       ZRGP(1:IL,ICH4:ICH4+KLEV-1,IB) = ZQCH4(1:IL,1:KLEV)
     ENDIF
