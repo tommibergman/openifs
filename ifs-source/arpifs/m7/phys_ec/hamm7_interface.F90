@@ -322,7 +322,6 @@ LOGICAL         :: LLIQCLD(KLON,KLEV) ! logical for liquid cloud
 LOGICAL         :: LICECLD(KLON,KLEV) ! logical for ice cloud
 
 REAL(KIND=JPRB), PARAMETER :: ZEPSEC=1e-14_JPRB
-REAL(KIND=JPRB), PARAMETER :: ZMIN_CDNC=10.0_JPRB               !eehol: minimum CDNC (can be changed but for now 10 cm-3)
 REAL(KIND=JPRB), PARAMETER :: ZDEF_CDNC=125.0_JPRB              !eehol: default CDNC (can be changed but for now 125 cm-3)
 REAL(KIND=JPRB), PARAMETER :: ZDEF_RE_LIQ=4.0_JPRB              !eehol: default liq eff radius (can be changed but for now 4 mu m comes from liquid effective radius routine (PP_MIN_RE_UM))
 REAL(KIND=JPRB), PARAMETER :: ZDEF_RE_ICE=80._JPRB*0.64952_JPRB !eehol: default ice eff radius (comes from ice effective radius routine (ZDEFAULT_RE_UM))
@@ -526,6 +525,7 @@ ASSOCIATE( &
          & LAERRRTM       => YREAERATM%LAERRRTM,                   &       
          & REPSCAER       => YREAERATM%REPSCAER,                   &         
          & RSIGMA_W       => YREAERATM%RSIGMA_W,                   &         
+         & ZMIN_CDNC      => YREAERATM%RMINCDNC,                   &
          ! --- YRERAD ----------------------------------------------
          & LAERVISI       => YRERAD%LAERVISI,                      &
          & NTSW           => YRERAD%NTSW,                          &
@@ -1095,7 +1095,7 @@ ENDDO
     ZXTM1(KIDIA:KFDIA,1:KLEV,IDT_CDNC) = (MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV),((1.0E6_JPRB)*ZMIN_CDNC)))/ZRHO(KIDIA:KFDIA,1:KLEV) ! [#/kg] and threshold CDNC
     ZXTM1(KIDIA:KFDIA,1:KLEV,IDT_ICNC) = (1.0E6_JPRB)*ZICNC(KIDIA:KFDIA,1:KLEV)/ZRHO(KIDIA:KFDIA,1:KLEV) !ice crystal number conc = #/cm3 --> number mix rat [#/kg]
 
-    PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH) = MAX((1.0E-6_JPRB)*ZCDNCACT(KIDIA:KFDIA,1:KLEV),ZMIN_CDNC)  ! convert from #/m3 to #/cm3 and threshold minimum value to 1 cm-3
+    PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH) = MAX((1.0E-6_JPRB)*ZCDNCACT(KIDIA:KFDIA,1:KLEV),ZMIN_CDNC)  ! convert from #/m3 to #/cm3 and set minimum value to ZMIN_CDNC
     PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH) = MAX( ZICNC(KIDIA:KFDIA,1:KLEV), RNICE) ! no conversion needed: already in #/cm3, just impose minimum value
 
     !eehol: update tendency of CDNC and ICNC (calculate only the newly formed droplets)
