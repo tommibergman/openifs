@@ -55,6 +55,7 @@ SUBROUTINE SUOROG (YDGEOMETRY, PSPOR)
 !      T. Wilhelmsson (Sept 2013) Geometry and setup refactoring.
 !      R. El Khatib 14-May-2018 move allocations to sugeometry and merge initializations with sueorog
 !      J. Bernales   11-Dec-2025 Read ice sheet orography from external file (optional)
+!      J. Bernales   04-Mar-2026 Read ice sheet mask from external file (optional)
 !     ------------------------------------------------------------------
 
 USE PARKIND1 , ONLY : JPIM, JPRB
@@ -68,10 +69,13 @@ USE TYPE_GEOMETRY , ONLY : GEOMETRY
 USE YOMDYNA_STATIC  , ONLY : LGRADGP
 
 ! Ice sheet coupling
-USE ECEARTH     , ONLY : ECE_CPL_ISMM
+USE ECEARTH     , ONLY : ECE_CPL_ISMM, ISMRGNPFX, NISMRGNS
+USE SURFECE     , ONLY : ECE_LANDICE, SURFECE_SET_LANDICE_LOCAL, SURFECE_RESET_LANDICE
+USE YOMCST      , ONLY : RG
 USE YOMMP0      , ONLY : MYPROC
 USE DISGRID_MOD , ONLY : DISGRID_SEND, DISGRID_RECV
-USE NETCDF
+USE NETCDF     , ONLY : nf90_open, NF90_NOWRITE, NF90_NOERR, nf90_strerror, &
+ &                       nf90_inq_varid, nf90_get_var, nf90_close
 
 IMPLICIT NONE
 
@@ -104,12 +108,17 @@ INTEGER(KIND=JPIM) :: JKGLO, IEND, IBL
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 ! Ice sheet coupling
-INTEGER :: NCID_IN, VARID_USURF, IRET_NC, IRET_DUMMY
-REAL(KIND=JPRB) :: G2P
+INTEGER(KIND=JPIM) :: II
+INTEGER :: NCID_IN, VARID_USURF, VARID_PLIT, IRET_NC, IRET_DUMMY
+INTEGER :: IACTIVE_CELLS
+REAL(KIND=JPRB) :: ZPLIT_SUM
 REAL(KIND=JPRB), ALLOCATABLE :: ZGLOB_USURF(:)  ! Global GP buffer
+REAL(KIND=JPRB), ALLOCATABLE :: ZGLOB_PLIT(:)   ! Global GP buffer
 REAL(KIND=JPRB) :: ZLOC_USURF(YDGEOMETRY%YRGEM%NGPTOT)  ! Local GP buffer
+REAL(KIND=JPRB) :: ZLOC_PLIT(YDGEOMETRY%YRGEM%NGPTOT)   ! Combined local mask (accumulated across regions)
+REAL(KIND=JPRB) :: ZLOC_PLIT_RGN(YDGEOMETRY%YRGEM%NGPTOT) ! Per-region scatter target
+REAL(KIND=JPRB), ALLOCATABLE :: ZLOC_PLIT_B(:,:)  ! Blocked form (NPROMA,NGPBLKS)
 INTEGER(KIND=JPIM), PARAMETER :: RPRC = 1_JPIM  ! Root I/O task
-CHARACTER(LEN=*), PARAMETER :: ISM_FORCE = './grtes_pism2ece.nc'  ! [jorb@dmi.dk] Later wire namelist
 
 #include "fv_gradient.intfb.h"
 #include "reespe.intfb.h"
@@ -127,7 +136,6 @@ ASSOCIATE(YDDIM=>YDGEOMETRY%YRDIM,YDDIMV=>YDGEOMETRY%YRDIMV,YDGEM=>YDGEOMETRY%YR
 ASSOCIATE(NGPBLKS=>YDDIM%NGPBLKS, NPROMA=>YDDIM%NPROMA, NSPEC2=>YDDIM%NSPEC2, &
  & NGPTOT=>YDGEM%NGPTOT)
 
-
 IF (LELAM) THEN
 
 !*       1.1   PLANE GEOMETRY.
@@ -144,59 +152,136 @@ ELSE
 
   CALL SPEREE(YDGEOMETRY,1,1,PSPOR,ZZOROG)
 
-!*       1.2.2.1   ICE SHEET COUPLING
+!*       1.2.2.1   ICE SHEET FIELDS
+!
+! One region loop serves both features. Each region file
+! ({prefix}_pism2ece.nc) can contain 'usurf' and/or 'plit'.
+! ECE_CPL_ISMM reads orography (usurf). ECE_LANDICE reads
+! the fractional ice sheet mask (plit, 0-1 after regridding).
 
-  IF (ECE_CPL_ISMM) THEN
+  IF (ECE_CPL_ISMM .OR. ECE_LANDICE) THEN
 
-    ! Prepare local buffers
-    ZLOC_USURF(:)  = 0._JPRB
-
-    ! Read ice sheet data
+    ! Allocate global buffers on root
     IF (MYPROC == RPRC) THEN
-      ! Prepare global buffers
-      ALLOCATE(ZGLOB_USURF(YDGEOMETRY%YRGEM%NGPTOTG))
-      ZGLOB_USURF(:) = 0._JPRB
-      ! Read NetCDF 'usurf' (metres) as a global GP vector
-      IRET_NC = nf90_open(TRIM(ISM_FORCE), NF90_NOWRITE, NCID_IN)
-      IF (IRET_NC == NF90_NOERR) THEN
-        IRET_NC = nf90_inq_varid(NCID_IN, 'usurf', VARID_USURF)
-        IF (IRET_NC == NF90_NOERR) THEN
-          ! Expect "2D" variable with dimensions "(1,NGPTOTG)".
-          ! Read count in inverse order due to Fortran "fastest-varying first" convention.
-          ! [jorb@dmi.dk] Later replace dimensions in input by simply "(cells)", as in OIFS netcdf output
-          IRET_NC = nf90_get_var(NCID_IN, VARID_USURF, ZGLOB_USURF, start=(/1,1/), count=(/YDGEOMETRY%YRGEM%NGPTOTG,1/))
+      IF (ECE_CPL_ISMM) ALLOCATE(ZGLOB_USURF(YDGEOMETRY%YRGEM%NGPTOTG))
+      IF (ECE_LANDICE)  ALLOCATE(ZGLOB_PLIT(YDGEOMETRY%YRGEM%NGPTOTG))
+    END IF
+    IF (ECE_LANDICE) ZLOC_PLIT(:) = 0._JPRB
+
+    DO II=1,NISMRGNS
+
+      ! --- Open region file ---
+      IF (MYPROC == RPRC) THEN
+        IRET_NC = nf90_open(TRIM(ISMRGNPFX(II))//"_pism2ece.nc", &
+         & NF90_NOWRITE, NCID_IN)
+        IF (IRET_NC /= NF90_NOERR) THEN
+          WRITE(*,*) '>>> SUOROG: FATAL - cannot open ', &
+           & TRIM(ISMRGNPFX(II))//'_pism2ece.nc: ', &
+           & TRIM(nf90_strerror(IRET_NC))
+          CALL ABOR1('SUOROG: Cannot open ' &
+           & //TRIM(ISMRGNPFX(II))//'_pism2ece.nc')
         END IF
-        IRET_DUMMY = nf90_close(NCID_IN)
       END IF
-      ! Convert metres -> geopotential
-      IF (IRET_NC == NF90_NOERR) THEN
-        write(*,*) '>>> SUOROG: read NetCDF file'
-        G2P = 9.80665_JPRB ! [jorb@dmi.dk] Later check if a model-wide value/variable exists
-        ZGLOB_USURF(:) = ZGLOB_USURF(:) * G2P
-      ELSE
-        WRITE(*,*) '>>> SUOROG: ERROR reading ice sheet model orography: ', IRET_NC, TRIM(nf90_strerror(IRET_NC))
-        WRITE(*,*) '>>> SUOROG: Using unmodified orography...' ! [jorb@dmi.dk] Later change for a hard crash
+
+      ! --- ISMM: read orography (usurf) ---
+      IF (ECE_CPL_ISMM) THEN
+        ZLOC_USURF(:) = 0._JPRB
+        IF (MYPROC == RPRC) THEN
+          ZGLOB_USURF(:) = 0._JPRB
+          IRET_NC = nf90_inq_varid(NCID_IN, 'usurf_oifs', VARID_USURF)
+          IF (IRET_NC == NF90_NOERR) THEN
+            IRET_NC = nf90_get_var(NCID_IN, VARID_USURF, ZGLOB_USURF, &
+             & start=(/1,1/), count=(/YDGEOMETRY%YRGEM%NGPTOTG,1/))
+          END IF
+          IF (IRET_NC == NF90_NOERR) THEN
+            write(*,*) '>>> SUOROG: read USURF from ', TRIM(ISMRGNPFX(II))
+            ZGLOB_USURF(:) = ZGLOB_USURF(:) * RG
+          ELSE
+            WRITE(*,*) '>>> SUOROG: FATAL - cannot read USURF: ', &
+             & IRET_NC, TRIM(nf90_strerror(IRET_NC))
+            CALL ABOR1('SUOROG: USURF read failed from ' &
+             & //TRIM(ISMRGNPFX(II))//'_pism2ece.nc')
+          END IF
+        END IF
+        IF (MYPROC == RPRC) THEN
+          CALL DISGRID_SEND(YDGEOMETRY, 1, ZGLOB_USURF, 1, ZLOC_USURF)
+        ELSE
+          CALL DISGRID_RECV(YDGEOMETRY, RPRC, 1, ZLOC_USURF, 1)
+        END IF
+        ! Patch orography where this region has ice sheet data
+        ! TODO: usurf > 0 fails for ice below sea level (e.g. bedrock depression)
+        WHERE (ZLOC_USURF > 0._JPRB) ZZOROG = ZLOC_USURF
       END IF
+
+      ! --- LANDICE: read fractional ice sheet mask (plit) ---
+      IF (ECE_LANDICE) THEN
+        ZLOC_PLIT_RGN(:) = 0._JPRB
+        IF (MYPROC == RPRC) THEN
+          ZGLOB_PLIT(:) = 0._JPRB
+          IRET_NC = nf90_inq_varid(NCID_IN, 'plit_oifs', VARID_PLIT)
+          IF (IRET_NC == NF90_NOERR) THEN
+            IRET_NC = nf90_get_var(NCID_IN, VARID_PLIT, ZGLOB_PLIT, &
+             & start=(/1,1/), count=(/YDGEOMETRY%YRGEM%NGPTOTG,1/))
+          END IF
+          IF (IRET_NC /= NF90_NOERR) THEN
+            WRITE(*,*) '>>> SUOROG: FATAL - cannot read PLIT: ', &
+             & IRET_NC, TRIM(nf90_strerror(IRET_NC))
+            CALL ABOR1('SUOROG: PLIT read failed from ' &
+             & //TRIM(ISMRGNPFX(II))//'_pism2ece.nc')
+          END IF
+          IACTIVE_CELLS = COUNT(ZGLOB_PLIT > 0.5_JPRB)
+          ZPLIT_SUM = SUM(ZGLOB_PLIT)
+          WRITE(*,*) '>>> SUOROG: Read PLIT from ', TRIM(ISMRGNPFX(II)), &
+           & ', range [', MINVAL(ZGLOB_PLIT), ',', MAXVAL(ZGLOB_PLIT), ']'
+          WRITE(*,'(A,A,A,I0,A,F10.2)') &
+           & '>>> SUOROG: ', TRIM(ISMRGNPFX(II)), &
+           & ' PLIT active cells (>0.5): ', IACTIVE_CELLS, &
+           & ', sum(plit): ', ZPLIT_SUM
+        END IF
+        IF (MYPROC == RPRC) THEN
+          CALL DISGRID_SEND(YDGEOMETRY, 1, ZGLOB_PLIT, 2, ZLOC_PLIT_RGN)
+        ELSE
+          CALL DISGRID_RECV(YDGEOMETRY, RPRC, 1, ZLOC_PLIT_RGN, 2)
+        END IF
+        ! Accumulate across regions (non-overlapping, so no double-count)
+        ZLOC_PLIT(:) = ZLOC_PLIT(:) + ZLOC_PLIT_RGN(:)
+      END IF
+
+      ! --- Close region file ---
+      IF (MYPROC == RPRC) IRET_DUMMY = nf90_close(NCID_IN)
+
+    END DO  ! regions
+
+    ! Post-loop: orography spectral consistency
+    IF (ECE_CPL_ISMM) THEN
+      CALL REESPE(YDGEOMETRY,1,1,PSPOR,ZZOROG)
+      ! TODO: check if extra lapse-rate corrections are needed for ISM orography
+      CALL SPEREE(YDGEOMETRY,1,1,PSPOR,ZZOROG)
     END IF
 
-    ! Scatter global field to local buffers
+    ! Post-loop: block and publish combined mask
+    IF (ECE_LANDICE) THEN
+      ALLOCATE(ZLOC_PLIT_B(NPROMA,NGPBLKS))
+      ZLOC_PLIT_B(:,:) = 0._JPRB
+      DO JKGLO=1,NGPTOT,NPROMA
+        IEND=MIN(NPROMA,NGPTOT-JKGLO+1)
+        IBL=(JKGLO-1)/NPROMA+1
+        ZLOC_PLIT_B(1:IEND,IBL)=MAX(0._JPRB,MIN(1._JPRB, &
+         & ZLOC_PLIT(JKGLO:JKGLO+IEND-1)))
+      ENDDO
+      CALL SURFECE_SET_LANDICE_LOCAL(ZLOC_PLIT_B)
+      DEALLOCATE(ZLOC_PLIT_B)
+    END IF
+
+    ! De-allocate global buffers
     IF (MYPROC == RPRC) THEN
-      CALL DISGRID_SEND(YDGEOMETRY, 1, ZGLOB_USURF, 1, ZLOC_USURF)
-    ELSE
-      CALL DISGRID_RECV(YDGEOMETRY, RPRC, 1, ZLOC_USURF, 1)
+      IF (ALLOCATED(ZGLOB_USURF)) DEALLOCATE(ZGLOB_USURF)
+      IF (ALLOCATED(ZGLOB_PLIT))  DEALLOCATE(ZGLOB_PLIT)
     END IF
 
-    ! Replace only where positive (== ice sheet points)
-    WHERE (ZLOC_USURF > 0._JPRB) ZZOROG = ZLOC_USURF ! [jorb@dmi.dk]: Later replace by better condition to avoid snapbacks
-
-    ! Ensure full consistency between gridpoint and spectral fields
-    CALL REESPE(YDGEOMETRY,1,1,PSPOR,ZZOROG)
-    CALL SPEREE(YDGEOMETRY,1,1,PSPOR,ZZOROG) ! [jorb@dmi.dk] Later check if extra lapse-rate corrections are needed for new wiggles
-
-    ! De-allocate global buffer
-    IF (ALLOCATED(ZGLOB_USURF)) DEALLOCATE(ZGLOB_USURF)
-
-  END IF ! ECE_CPL_ISMM
+  ELSE
+    CALL SURFECE_RESET_LANDICE()
+  END IF
 
 !*       1.2.3   COMPUTE FIRST ORDER DERIVATIVES OF OROGRAPHY.
 

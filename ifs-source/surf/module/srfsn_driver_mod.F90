@@ -39,6 +39,7 @@ USE SRFSN_ASN_MOD
 USE SRFSN_VGRID_MOD 
 USE SRFSN_REGRID_MOD
 USE SRFSN_SSRABS_MOD
+USE SURFECE, ONLY : SURFECE_GET_LANDICE, ECE_LANDICE_THRESH
 
 USE ABORT_SURF_MOD
 
@@ -210,6 +211,9 @@ INTEGER(KIND=JPRB) :: JL,JK
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
+! Ice sheet coupling
+REAL(KIND=JPRB) :: ZLANDICE(KLON)
+
 #include "fcsurf.h"
 
 !    -----------------------------------------------------------------
@@ -220,6 +224,9 @@ ASSOCIATE(RTF1=>YDSOIL%RTF1, RTF2=>YDSOIL%RTF2, RTF3=>YDSOIL%RTF3, RTF4=>YDSOIL%
 !*         1.1 Global computations 
 !*             Snow fraction, total heat and precip/snow to the snow scheme 
 !             -----------------------------------------------------------
+
+! Ice sheet coupling
+CALL SURFECE_GET_LANDICE(ZLANDICE)  ! Read [0-1] ice sheet mask from file
 
 DO JL=KIDIA,KFDIA
 ! This safety check must be put for DA 
@@ -287,6 +294,10 @@ DO JL=KIDIA,KFDIA
       ENDIF
       !  ZFF=0.0_JPRB
     ZSURFCOND(JL) = MAX(0.19_JPRB,MIN(2._JPRB,FSOILTCOND(PWSAM1M(JL,1),ZFF,KSOTY(JL))))
+    IF (ZLANDICE(JL) > ECE_LANDICE_THRESH) THEN
+      ! Blend soil and ice substrate conductivity proportional to ice sheet mask fraction
+      ZSURFCOND(JL) = ZLANDICE(JL)*YDSOIL%RLAMICE + (1._JPRB - ZLANDICE(JL))*ZSURFCOND(JL)
+    END IF
 
   ENDIF
   
@@ -492,4 +503,3 @@ END SUBROUTINE SRFSN_DRIVER
 END MODULE SRFSN_DRIVER_MOD 
 
 
- 

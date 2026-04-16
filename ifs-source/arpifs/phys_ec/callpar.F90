@@ -317,6 +317,7 @@ REAL(KIND=JPRB) :: ZSNOWACL(KDIM%KLON,KDIM%KLEV) ! accretion rate of snow with c
 ! Locals for array indexing (ECEARTH, LPJG)
 INTEGER(KIND=JPIM) :: IL,IE,IG
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+INTEGER(KIND=JPIM) :: II
 
 ! --------------------------------------
 !     Local variables for SPP
@@ -1956,6 +1957,21 @@ IF (ECE_CPL_LPJG) THEN
   IF (ECE_CPL_LPJG_CO2) CALL ECE_LPJG_SET_STATE(KDIM,YDMODEL,PGFL)
 
 ENDIF
+
+IF (ECE_CPL_ISMM) THEN
+      
+  IL = KDIM%KIDIA
+  IE = KDIM%KFDIA - KDIM%KIDIA
+  IG = KDIM%KSTGLO - 1 + KDIM%KIDIA
+
+  CPLNG2_FLD(CPLNG2_IDX('A_Evap_ISM'))%D(IG:IG+IE,1,1) = &
+        & - SUM( PSURF%PEVAPTI(IL:IL+IE,3:9)*SURFL%ZFRTI(IL:IL+IE,3:9), DIM=2)
+  CPLNG2_FLD(CPLNG2_IDX('A_Soil4T_ISM'))%D(IG:IG+IE,1,1) = PSURF%PSP_SB(IL:IL+IE,4, YDSURF%YSP_SB%YT%MP9)
+  CPLNG2_FLD(CPLNG2_IDX('A_SST_ISM'))%D(IG:IG+IE,1,1) = PSURF%PSD_VF(IL:IL+IE, YSD_VF%YSST%MP)
+
+ENDIF
+
+
 ! ---------------------------------------------------------------------------------------
 
 ! Output total physics tendencies (after stochastic physics)
@@ -1966,7 +1982,6 @@ IF (LEXTRATEND) THEN
     & PTA3=TENDENCY_CML%T, PTS3=TENDENCY_DYN%T, PO3=PSURF%PSD_XA(:,:,28),               &
     & PTA4=TENDENCY_CML%Q, PTS4=TENDENCY_DYN%Q, PO4=PSURF%PSD_XA(:,:,29))
 ENDIF
-
 
 ! ---------------------------------------------------------------------------------------
 

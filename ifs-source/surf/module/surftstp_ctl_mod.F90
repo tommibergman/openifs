@@ -7,7 +7,7 @@
 ! nor does it submit to any jurisdiction
 MODULE SURFTSTP_CTL_MOD
 
-USE SURFECE, ONLY: ECE_CPL_NEMO_LIM, ECE_CPL_FESOM_FESIM
+USE SURFECE, ONLY: ECE_CPL_NEMO_LIM, ECE_CPL_FESOM_FESIM, SURFECE_GET_LANDICE, ECE_LANDICE_THRESH
 
 CONTAINS
 SUBROUTINE SURFTSTP_CTL(KIDIA , KFDIA , KLON  , KLEVS , KTILES,&
@@ -516,6 +516,10 @@ REAL(KIND=JPRD) :: ZTLICE(KLON),ZTLMNW(KLON),ZTLWML(KLON),&
                    &ZTLBOT(KLON),ZTLSF(KLON),ZHLICE(KLON),ZHLML(KLON)
 REAL(KIND=JPRB) :: ZTSFCIN(KLON),ZTSFLIN(KLON),ZROFS(KLON)
 
+! Ice sheet coupling
+REAL(KIND=JPRB) :: ZLANDICE(KLON)
+LOGICAL :: LLPERMSNOW, LLGLACIER
+
 !     ------------------------------------------------------------------
 
 !*         1.1   SET UP SOME CONSTANTS, INITIALISE ARRAYS.
@@ -654,28 +658,44 @@ ELSE
 
 ENDIF
 ZROFS(KIDIA:KFDIA)=0._JPRB
+
 ! Take care of permanent snow areas!
 !Permanent snow reset was potentially dangerous at 1m threshold and 9m is used instead.
 ZSNPERT=9000.0_JPRB ! permanent snow threshold
 KLMAX=KLEVSN ! permanent snow max index
+CALL SURFECE_GET_LANDICE(ZLANDICE)  ! Read [0-1] ice sheet mask from file
 IF ( .NOT. LESNML ) KLMAX=1
 DO JL=KIDIA,KFDIA
-  IF ( SUM(PSNM1M(JL,:)) >=ZSNPERT ) THEN
-    ZASN(JL)=RALFMINPSN
+  LLPERMSNOW = (SUM(PSNM1M(JL,:)) >= ZSNPERT)
+  LLGLACIER  = (ZLANDICE(JL) > ECE_LANDICE_THRESH)
+  ! Ice sheet coupling: ZLANDICE cells with any snow use the mask as the primary
+  ! glacier criterion (density reset, albedo delegation) regardless of SWE depth.
+  ! Non-mask glaciers (e.g. Antarctica) continue to use the SWE proxy threshold.
+  ! The SWE cap (ZSN=10000) is guarded by LLPERMSNOW to prevent mass creation on
+  ! thin-snow glacier cells.
+  IF (LLPERMSNOW .OR. (LLGLACIER .AND. SUM(PSNM1M(JL,:)) > 0._JPRB)) THEN
+    ! Albedo: reset to minimum only for non-mask glaciers.
+    ! ZLANDICE cells delegate albedo evolution to the srfsn_asn 4-branch scheme.
+    IF (LLPERMSNOW .AND. .NOT. LLGLACIER) THEN
+      ZASN(JL)=RALFMINPSN
+    ENDIF
     IF (.NOT. YDSOIL%LESNWBCON ) THEN
       !=======***NOTE***==========
        ! SETTING ZSN IN PERMANENT SNOW AREAS DOES NOT CONSERVE MASS !!!!
        ! IF MASS IS TO BE CONSERVED THE FOLLOWING LINE SHOULD BE COMMENTED !
        IF ( .NOT. LESNML ) THEN
          ZRSN(JL,KLMAX)=RHOMAXSN
-         ZSN(JL,KLMAX) = 10000.0_JPRB !reset to glaciers value of 10000 kg/m2 (SWE=10m)
+         ! SWE cap: mass-altering; only apply for thick-snow (LLPERMSNOW) points
+         IF (LLPERMSNOW) ZSN(JL,KLMAX) = 10000.0_JPRB !reset to glaciers value of 10000 kg/m2 (SWE=10m)
        ELSE ! RSN is not interactive over glacier, fixed to 300
          ZRSN(JL,1:KLEVSN) =RHOMAXSN
          ZWSN(JL,1:KLEVSN) = 0._JPRB
-         IF (KLMAX /= KLEVSN) THEN
-           ZSN(JL,KLMAX)  = 10000.0_JPRB - SUM(ZSN(JL,1:KLMAX-1)) - SUM(ZSN(JL,KLMAX+1:KLEVSN))  !reset to glaciers value of 10000 kg/m2 (SWE=10m)
-         ELSE
-           ZSN(JL,KLMAX)  = 10000.0_JPRB - SUM(ZSN(JL,1:KLMAX-1))                        !reset to glaciers value of 10000 kg/m2 (SWE=10m)
+         IF (LLPERMSNOW) THEN
+           IF (KLMAX /= KLEVSN) THEN
+             ZSN(JL,KLMAX)  = 10000.0_JPRB - SUM(ZSN(JL,1:KLMAX-1)) - SUM(ZSN(JL,KLMAX+1:KLEVSN))  !reset to glaciers value of 10000 kg/m2 (SWE=10m)
+           ELSE
+             ZSN(JL,KLMAX)  = 10000.0_JPRB - SUM(ZSN(JL,1:KLMAX-1))                        !reset to glaciers value of 10000 kg/m2 (SWE=10m)
+           ENDIF
          ENDIF
        ENDIF
     ELSE
@@ -687,22 +707,26 @@ DO JL=KIDIA,KFDIA
         !           OR IN ece_fesom_set_ocean_fluxes.F90
         IF ( .NOT. ECE_CPL_NEMO_LIM .AND. .NOT.ECE_CPL_FESOM_FESIM) THEN
           ZRSN(JL,KLMAX)=RHOMAXSN
-          ZROFS(JL) = MAX(0._JPRB,ZSN(JL,KLMAX)-PSNM1M(JL,KLMAX))*ZTSPHY
-          ZSN(JL,KLMAX)=10000.0_JPRB
-        ENDIF 
+          IF (LLPERMSNOW) THEN
+            ZROFS(JL) = MAX(0._JPRB,ZSN(JL,KLMAX)-PSNM1M(JL,KLMAX))*ZTSPHY
+            ZSN(JL,KLMAX)=10000.0_JPRB
+          ENDIF
+        ENDIF
       ELSE
         ! EC-EARTH: CAP ZSN IN ATMOS-ONLY EXPERIMENTS, FOR CPLD EXPERIMENTS
         !           THIS IS TAKEN CARE OF IN ece_nemo_set_ocean_fluxes.F90
         !           OR IN ece_fesom_set_ocean_fluxes.F90
         IF ( .NOT. ECE_CPL_NEMO_LIM .AND. .NOT.ECE_CPL_FESOM_FESIM) THEN
           ZRSN(JL,1:KLEVSN) =RHOMAXSN
-          ZROFS(JL) = MAX(0._JPRB,ZSN(JL,KLMAX)-SUM(PSNM1M(JL,:)))*ZTSPHY
           ZWSN(JL,1:KLEVSN) = 0._JPRB
-          IF (KLMAX /= KLEVSN) THEN
-            ZSN(JL,KLMAX)  = 10000.0_JPRB - SUM(ZSN(JL,1:KLMAX-1)) - SUM(ZSN(JL,KLMAX+1:KLEVSN))  !reset to glaciers value of 10000 kg/m2 (SWE=10m)
-          ELSE
-            ZSN(JL,KLMAX)  = 10000.0_JPRB - SUM(ZSN(JL,1:KLMAX-1))                        !reset to glaciers value of 10000 kg/m2 (SWE=10m)
-          ENDIF        
+          IF (LLPERMSNOW) THEN
+            ZROFS(JL) = MAX(0._JPRB,ZSN(JL,KLMAX)-SUM(PSNM1M(JL,:)))*ZTSPHY
+            IF (KLMAX /= KLEVSN) THEN
+              ZSN(JL,KLMAX)  = 10000.0_JPRB - SUM(ZSN(JL,1:KLMAX-1)) - SUM(ZSN(JL,KLMAX+1:KLEVSN))  !reset to glaciers value of 10000 kg/m2 (SWE=10m)
+            ELSE
+              ZSN(JL,KLMAX)  = 10000.0_JPRB - SUM(ZSN(JL,1:KLMAX-1))                        !reset to glaciers value of 10000 kg/m2 (SWE=10m)
+            ENDIF
+          ENDIF
         ENDIF
       ENDIF
     ENDIF

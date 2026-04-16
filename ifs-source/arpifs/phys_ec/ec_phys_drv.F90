@@ -125,7 +125,7 @@ USE FIELD_VARIABLES_MOD, ONLY: FIELD_VARIABLES
 USE YOMVAR             , ONLY : LECV
 USE YOMJBECV           , ONLY : YRECV5
 USE YOMJBECPHYSECV      , ONLY : LSIGFLTORO, GET_PHYS_ECV
-
+USE SURFECE            , ONLY : SURFECE_SET_ACTIVE_BLOCK  ! Thread-safe via THREADPRIVATE; remove once mask is in surface fields
 
 
 
@@ -470,6 +470,7 @@ ELSE
     CALL ZSURFL%UPDATE_VIEW(BLOCK_INDEX=IBL)
     CALL ZLLKEYS%UPDATE_VIEW(BLOCK_INDEX=IBL)
     CALL ZPERTL%UPDATE_VIEW(BLOCK_INDEX=IBL)
+    CALL SURFECE_SET_ACTIVE_BLOCK(IBL)  ! Thread-safe via THREADPRIVATE; remove once mask is in surface fields
 
     ! Interface to global arrays (through derived type variables)
     ! Note: It is better not to trust any model dimension and secure it here (to avoid bound checking pb).

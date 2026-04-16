@@ -28,6 +28,7 @@ USE YOS_VEG   , ONLY : TVEG
 USE YOS_FLAKE , ONLY : TFLAKE
 USE YOS_SOIL  , ONLY : TSOIL
 USE YOS_URB   , ONLY : TURB
+USE SURFECE   , ONLY : SURFECE_GET_LANDICE, ECE_LANDICE_THRESH
 !------------------------------------------------------------------------
 
 !  PURPOSE:
@@ -203,6 +204,9 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 REAL(KIND=JPRB) :: ZLICE(KLON),ZLWAT(KLON),ZSNOW,ZSNOWHVEG
 REAL(KIND=JPRB) :: ZTSKMEAN,ZDLWDTSTAR
 
+! Ice sheet coupling
+REAL(KIND=JPRB) :: ZLANDICE(KLON)
+
 !      1. Initialize constants
 
 IF (LHOOK) CALL DR_HOOK('SURFSEB_CTL_MOD:SURFSEB_CTL',0,ZHOOK_HANDLE)
@@ -272,6 +276,9 @@ ENDDO
 !      4. Compute coefficients for dry static energy flux Js and 
 !         moisture flux Jq, expressed in Sl and Ql (Ssk has been 
 !         eliminated using surface energy balance. 
+
+! Ice sheet coupling
+CALL SURFECE_GET_LANDICE(ZLANDICE)  ! Read [0-1] ice sheet mask from file
 
 DO JT=1,KTILES
 
@@ -389,6 +396,14 @@ DO JT=1,KTILES
 !       STOP -9
 !     endif
     ZLAMSK(JL,JT) = PLAMSK(JL,JT) ! Overwrites above calculations
+
+    ! Ice sheet coupling: blend ice skin conductivity with soil value proportional to mask fraction.
+    IF (ZLANDICE(JL) > ECE_LANDICE_THRESH) THEN
+      IF (JT==3 .OR. JT==4 .OR. JT==6 .OR. JT==8) THEN
+        ZLAMSK(JL,JT) = ZLANDICE(JL)*RVLAMSK(12) + (1._JPRB - ZLANDICE(JL))*PLAMSK(JL,JT)
+      ENDIF
+    ENDIF
+
     IF (JT == 9 )  THEN                     
       ZLAM=RLVTT*ZLWAT(JL)+RLSTT*ZLICE(JL)  
     ENDIF                                   

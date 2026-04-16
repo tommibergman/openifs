@@ -23,6 +23,7 @@ USE YOS_FLAKE, ONLY : TFLAKE
 USE YOS_URB  , ONLY : TURB
 
 USE SRFWDIF_MOD
+USE SURFECE, ONLY : SURFECE_GET_LANDICE, ECE_LANDICE_THRESH
 
 !**** *SRFT* - Computes temperature changes in soil.
 
@@ -121,7 +122,7 @@ REAL(KIND=JPRB),    INTENT(IN)   :: PEVAPTI(:,:)
 REAL(KIND=JPRB),    INTENT(IN)   :: PSLRFLTI(:,:)
 REAL(KIND=JPRB),    INTENT(IN)   :: PSSRFLTI(:,:)
 REAL(KIND=JPRB),    INTENT(IN)   :: PGSN(:)
-REAL(KIND=JPRB),    INTENT(IN)   :: PCTSA(:,:)
+REAL(KIND=JPRB),    INTENT(INOUT) :: PCTSA(:,:)
 LOGICAL,            INTENT(IN)   :: LDLAND(:)
 TYPE(TCST),         INTENT(IN)   :: YDCST
 TYPE(TSOIL),        INTENT(IN)   :: YDSOIL
@@ -145,6 +146,9 @@ INTEGER(KIND=JPIM) :: JK, JL, JS
 REAL(KIND=JPRB) :: ZCONS1, ZCONS2, ZSLRFL, ZSSRFL, ZTHFL, ZTMST,&
  & ZFF, ZWU, ZLSM, ZLIC, ZLWT, ZLAMBDASAT, ZKERSTEN, ZINVWSAT
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+
+! Ice sheet coupling
+REAL(KIND=JPRB) :: ZLANDICE(KLON)
 
 #include "fcsurf.h"
 
@@ -281,6 +285,17 @@ DO JK=1,KLEVS
       ZDIF(JL,JK)=0.0_JPRB
     ENDIF
   ENDDO
+ENDDO
+
+! Ice sheet coupling: blend “soil” thermals with “ice” thermals proportional to mask fraction
+CALL SURFECE_GET_LANDICE(ZLANDICE)  ! Read [0-1] ice sheet mask from file
+DO JL=KIDIA,KFDIA
+  IF (ZLANDICE(JL) > ECE_LANDICE_THRESH .AND. LLDOSOIL(JL)) THEN
+    DO JK=1,KLEVS
+      ZDIF(JL,JK)  = ZLANDICE(JL)*2.2_JPRB      + (1._JPRB - ZLANDICE(JL))*ZDIF(JL,JK)   ! ice thermal conductivity [W/m/K]
+      PCTSA(JL,JK) = ZLANDICE(JL)*2050000._JPRB  + (1._JPRB - ZLANDICE(JL))*PCTSA(JL,JK)  ! volumetric heat capacity [J/m³/K]
+    ENDDO
+  ENDIF
 ENDDO
 
 !*         4. Set arrays

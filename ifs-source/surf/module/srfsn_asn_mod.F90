@@ -16,6 +16,10 @@ USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
 
 USE YOS_SOIL , ONLY : TSOIL 
 USE YOS_CST  , ONLY : TCST
+USE SURFECE  , ONLY : ECE_LANDICE, SURFECE_GET_LANDICE, ECE_LANDICE_THRESH, &
+                    & ECE_LANDICE_ALB_MIN, ECE_LANDICE_ALB_REFROZ, &
+                    & ECE_LANDICE_ALB_FIRN, ECE_LANDICE_ALB_FRESH, &
+                    & ECE_LANDICE_TAU_DRY, ECE_LANDICE_TAU_WET
 !**** *SRFSN_RSN* - Snow albedo
 !     PURPOSE.
 !     --------
@@ -93,10 +97,21 @@ INTEGER(KIND=JPIM) :: JL
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
+! Ice sheet coupling
+REAL(KIND=JPRB) :: ZLANDICE(KLON)
+REAL(KIND=JPRB) :: ZEXPF_DRY,ZEXPF_WET
+
 !    -----------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('SRFSN_ASN_MOD:SRFSN_ASN',0,ZHOOK_HANDLE)
 
 !    -----------------------------------------------------------------
+
+! Ice sheet coupling
+CALL SURFECE_GET_LANDICE(ZLANDICE)
+IF (ECE_LANDICE) THEN
+  ZEXPF_DRY=EXP(-PTMST*ECE_LANDICE_TAU_DRY/YDCST%RDAY)
+  ZEXPF_WET=EXP(-PTMST*ECE_LANDICE_TAU_WET/YDCST%RDAY)
+ENDIF
 
 DO JL=KIDIA,KFDIA
   IF (LLNOSNOW(JL)) THEN
@@ -117,6 +132,23 @@ DO JL=KIDIA,KFDIA
      & (YDSOIL%RALFMAXSN-PASN(JL))
     PASN(JL)=MIN(YDSOIL%RALFMAXSN,MAX(PASN(JL),YDSOIL%RALFMINSN))
     
+    ! Ice sheet coupling: separate prognostic albedo for snow on coupled ice sheets
+    IF (ZLANDICE(JL) > ECE_LANDICE_THRESH) THEN
+      ! Check for melting conditions
+      IF (PMSN(JL) > 0.0_JPRB) THEN
+        PASN(JL)=ECE_LANDICE_ALB_MIN+(PASNM1M(JL)-ECE_LANDICE_ALB_MIN)*ZEXPF_WET
+      ! If not melting, but albedo low due to previous melting, refreezing albedo is applied
+      ELSE IF (PASNM1M(JL) <= ECE_LANDICE_ALB_REFROZ) THEN
+        PASN(JL)=ECE_LANDICE_ALB_REFROZ
+      ! If no melt or refreezing, exponential decay under dry conditions
+      ELSE
+        PASN(JL)=ECE_LANDICE_ALB_FIRN+(MAX(PASNM1M(JL),ECE_LANDICE_ALB_FIRN)-ECE_LANDICE_ALB_FIRN)*ZEXPF_DRY
+      ENDIF
+      ! Update albedo due to snow fall events
+      PASN(JL)=PASN(JL)+ MIN(MAX(PSNOWF(JL)*PTMST,0._JPRB)/(10._JPRB),1._JPRB)*(ECE_LANDICE_ALB_FRESH-PASN(JL))
+      PASN(JL)=MAX(MIN(PASN(JL),ECE_LANDICE_ALB_FRESH),ECE_LANDICE_ALB_MIN)
+    ENDIF
+
   ENDIF
 ENDDO
 

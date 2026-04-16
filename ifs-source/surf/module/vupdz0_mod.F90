@@ -32,6 +32,7 @@ USE YOS_CST   , ONLY : TCST
 USE YOS_VEG   , ONLY : TVEG
 USE YOS_FLAKE , ONLY : TFLAKE
 USE YOS_URB   , ONLY : TURB
+USE SURFECE   , ONLY : SURFECE_GET_LANDICE, ECE_LANDICE_THRESH
 
 !     ------------------------------------------------------------------
 
@@ -185,6 +186,9 @@ REAL(KIND=JPRD) :: ZDUMMY
 REAL(KIND=JPRB) :: ZURBF
 
 LOGICAL :: LLCURR,LLINIT
+
+! Ice sheet coupling
+REAL(KIND=JPRB) :: ZLANDICE(KLON)
 
 !             INCLUDE STABILITY FUNCTIONS
 !             ------- --------- ---------
@@ -470,6 +474,25 @@ IF (LSCMEC .AND. LROUGH) THEN
   PZ0MTI(:,:) = REXTZ0M   ! scm namelist parameters
   PZ0HTI(:,:) = REXTZ0H
 ENDIF
+
+! Ice sheet coupling: impose ice roughness lenghts over land ice
+CALL SURFECE_GET_LANDICE(ZLANDICE)  ! Read [0-1] ice sheet mask from file
+DO JL=KIDIA,KFDIA
+  IF (ZLANDICE(JL) > ECE_LANDICE_THRESH) THEN
+    PZ0MTI(JL,3)=RZ0ICE  ! Wet skin
+    PZ0HTI(JL,3)=RZ0ICE
+    PZ0QTI(JL,3)=RZ0ICE
+    PZ0MTI(JL,4)=RZ0ICE  ! Low vegetation
+    PZ0HTI(JL,4)=RZ0ICE
+    PZ0QTI(JL,4)=RZ0ICE
+    PZ0MTI(JL,6)=RZ0ICE  ! High vegetation
+    PZ0HTI(JL,6)=RZ0ICE
+    PZ0QTI(JL,6)=RZ0ICE
+    PZ0MTI(JL,8)=RZ0ICE  ! Bare soil
+    PZ0HTI(JL,8)=RZ0ICE
+    PZ0QTI(JL,8)=RZ0ICE
+  ENDIF
+ENDDO
 
 
 !*        7.   COMPUTE PRELIMINARY AERODYNAMIC RESISTANCE FOR COMPUTATION 

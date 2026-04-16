@@ -25,6 +25,10 @@ USE YOS_VEG  , ONLY : TVEG
 USE YOS_SOIL , ONLY : TSOIL
 USE YOS_FLAKE, ONLY : TFLAKE
 USE YOS_EXC  , ONLY : TEXC
+USE SURFECE  , ONLY : ECE_LANDICE, SURFECE_GET_LANDICE, ECE_LANDICE_THRESH, &
+                    & ECE_LANDICE_ALB_MIN, ECE_LANDICE_ALB_REFROZ, &
+                    & ECE_LANDICE_ALB_FIRN, ECE_LANDICE_ALB_FRESH, &
+                    & ECE_LANDICE_TAU_DRY, ECE_LANDICE_TAU_WET
 
 !**** *SRFSN_LWIMP* - CONTAINS SNOW PARAMETRIZATION 
 !
@@ -190,6 +194,10 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 INTEGER(KIND=JPIM) :: JL
 
+! Ice sheet coupling
+REAL(KIND=JPRB) :: ZLANDICE(KLON)
+REAL(KIND=JPRB) :: ZICERES,ZEXPF_DRY,ZEXPF_WET
+
 !     ------------------------------------------------------------------
 !*         1.    SET UP SOME CONSTANTS.
 !                --- -- ---- ----------
@@ -236,6 +244,14 @@ DO JL=KIDIA,KFDIA
     ZLICE(JL)=0._JPRB
   ENDIF
 ENDDO
+
+! Ice sheet coupling
+CALL SURFECE_GET_LANDICE(ZLANDICE)
+IF (ECE_LANDICE) THEN
+  ZICERES = 1.0_JPRB / RVLAMSK(12)
+  ZEXPF_DRY=EXP(-PTMST*ECE_LANDICE_TAU_DRY/RDAY)
+  ZEXPF_WET=EXP(-PTMST*ECE_LANDICE_TAU_WET/RDAY)
+ENDIF
 
 !     ------------------------------------------------------------------
 !*         2. NEW SNOW T AND MASS INCLUDING GROUND HEAT FLUX AND MELTING.
@@ -370,7 +386,11 @@ DO JL=KIDIA,KFDIA
     ZDSN=MIN(PSSNM1M(JL)/(PRSNM1M(JL)*ZFRSN(JL)),RDSNMAX)
     ! RESISTANCE FOR HEAT FLUX BETWEEN SNOW AND SOIL LAYER 
     ZSNRES=0.5_JPRB*ZDSN/(RLAMICE*(PRSNM1M(JL)*ZHOICE)**RALAMSN)
-    ZRS=1.0_JPRB/(ZSNRES+ZSOILRES)
+    IF (ZLANDICE(JL) > ECE_LANDICE_THRESH) THEN
+      ZRS = 1.0_JPRB/(ZSNRES + ZICERES)  ! Use ice substrate
+    ELSE
+      ZRS = 1.0_JPRB/(ZSNRES + ZSOILRES) ! Use default substrate
+    ENDIF
 
 !  ACCOUNT FOR THROUGHFALL INTERCEPTION 
     ! mass advected
@@ -523,6 +543,23 @@ DO JL=KIDIA,KFDIA
     PASN(JL)=PASN(JL)+ MIN(MAX((ZSSFC(JL)+ZSSFL(JL))*PTMST , 0._JPRB)/(10._JPRB) , 1._JPRB) *(RALFMAXSN-PASN(JL))
     PASN(JL)=MIN(RALFMAXSN,MAX(PASN(JL),RALFMINSN))
     
+    ! Ice sheet coupling: separate prognostic albedo for snow on coupled ice sheets
+    IF (ZLANDICE(JL) > ECE_LANDICE_THRESH) THEN
+      ! Check for melting conditions not due to melting of excess snow
+      IF (PMSN(JL) > 0.0_JPRB .OR. ZPMSNINT(JL) > 0.0_JPRB .OR. PTSNM1M(JL) > (ZT0-2._JPRB)) THEN
+        PASN(JL)=ECE_LANDICE_ALB_MIN+(PASNM1M(JL)-ECE_LANDICE_ALB_MIN)*ZEXPF_WET
+      ! If not melting, but albedo low due to previous melting, refreezing albedo is applied
+      ELSE IF (PASNM1M(JL) <= ECE_LANDICE_ALB_REFROZ) THEN
+        PASN(JL)=ECE_LANDICE_ALB_REFROZ
+      ! If no melt or refreezing, exponential decay under dry conditions
+      ELSE
+        PASN(JL)=ECE_LANDICE_ALB_FIRN+(MAX(PASNM1M(JL),ECE_LANDICE_ALB_FIRN)-ECE_LANDICE_ALB_FIRN)*ZEXPF_DRY
+      ENDIF
+      ! Update albedo due to snow fall events
+      PASN(JL)=PASN(JL)+ MIN(MAX((ZSSFC(JL)+ZSSFL(JL))*PTMST,0._JPRB)/(10._JPRB),1._JPRB)*(ECE_LANDICE_ALB_FRESH-PASN(JL))
+      PASN(JL)=MAX(MIN(PASN(JL),ECE_LANDICE_ALB_FRESH),ECE_LANDICE_ALB_MIN)
+    ENDIF
+
   ENDIF
 ENDDO
 
