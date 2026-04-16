@@ -60,6 +60,7 @@ SUBROUTINE SUECOZV(YDECMIP,KINDAT)
 !     J. Kjellsson        25/09/2025 Support for CMIP7 forcings 
 !-----------------------------------------------------------------------
 
+USE NETCDF
 USE PARKIND1 , ONLY : JPIM, JPRB, JPRD, JPIB
 USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMLUN   , ONLY : NULOUT
@@ -509,49 +510,6 @@ WRITE(NULOUT, *) "SUECOZV: RPROC1  = ",YDECMIP%RPROC1(:)
 IF (LHOOK) CALL DR_HOOK('SUECOZV:CMIP6_OZONE_COORD',1,ZHOOK_HANDLE)
 END SUBROUTINE CMIP6_OZONE_COORD
 
-!SUBROUTINE CMIP7_OZONE_COORD(CFILE, NLON1NC, NLAT1NC, NLV1NC)
-! 
-! Purpose: 
-!   Populate the arrays RLONCLI, RLATCLI, RPROC1 in YDECMIP 
-!   which contain the lon, lat and pressure levels for ozone
-!
-! Joakim Kjellsson, SMHI, 25/09/2025
-!
-
-!    CHARACTER(LEN=150), INTENT(IN)   :: CFILE
-!    INTEGER(KIND=JPIM), INTENT(IN)   :: NLON1NC, NLAT1NC, NLV1NC 
-!    INTEGER(KIND=JPIM)               :: INCUNIT, ILONVARID, ILATVARID, IPREVARID
-!    INTEGER(KIND=JPIM)               :: ISTART
-!    REAL(KIND=JPHOOK)                :: ZHOOK_HANDLE
-    
-!    IF (LHOOK) CALL DR_HOOK('SUECOZV:CMIP6_OZONE_COORD',0,ZHOOK_HANDLE)
-
-    ! Open file and check for variables
-!    CALL CHECK( NF_OPEN(CC,NF_NOWRITE,INCUNIT) ) 
-
-!    CALL CHECK( NF_INQ_VARID(INCUNIT, "lon", ILONVARID) )
-!    CALL CHECK( NF_INQ_VARID(INCUNIT, "lat", ILATVARID) )
-!    CALL CHECK( NF_INQ_VARID(INCUNIT, "plev", IPREVARID) )  
-    
-    ! read lon, lat, plev
-!    ISTART = 1
-!    IF(JPRB==JPRD) THEN ! if double precision 
-!        CALL CHECK( NF_GET_VARA_DOUBLE(INCUNIT, ILONVARID, ISTART, NLON1NC, YDECMIP%RLONCLI) )
-!        CALL CHECK( NF_GET_VARA_DOUBLE(INCUNIT, ILONVARID, ISTART, NLAT1NC, YDECMIP%RLATCLI) )
-!        CALL CHECK( NF_GET_VARA_DOUBLE(INCUNIT, ILONVARID, ISTART, NLV1NC,  YDECMIP%RPROC1) )
-!    ELSE ! if single precision
-!        CALL CHECK( NF_GET_VARA_REAL(INCUNIT, ILONVARID, ISTART, NLON1NC, YDECMIP%RLONCLI) )
-!        CALL CHECK( NF_GET_VARA_REAL(INCUNIT, ILONVARID, ISTART, NLAT1NC, YDECMIP%RLATCLI) )
-!        CALL CHECK( NF_GET_VARA_REAL(INCUNIT, ILONVARID, ISTART, NLV1NC,  YDECMIP%RPROC1) )
-!    ENDIF
-
-    ! done
-!    CALL CHECK( NF_CLOSE(INCUNIT) )
-
-!IF (LHOOK) CALL DR_HOOK('SUECOZV:CMIP6_OZONE_COORD',1,ZHOOK_HANDLE)
-
-!END SUBROUTINE CMIP7_OZONE_COORD
-
 SUBROUTINE READ_NC_FILE_OZONE_CMIP6(CC,NLON1NC,NLAT1NC,NLV1NC,NMONTH1NC,ZOZCL)
   ! Based on EC-Earth code from Michiel van Weele.
   ! Read CMIP6 ozone forcing from NetCDF datafiles (NMONTH1=14 months)
@@ -705,29 +663,30 @@ SUBROUTINE READ_NC_FILE_OZONE_CMIP7(CC,NLON1NC,NLAT1NC,NLV1NC,IYR1NC,IYEAR1NC,IY
     REAL(KIND=JPRB), INTENT(INOUT)   :: ZOZCL(NLON1NC, NLAT1NC ,NLV1NC, 0:NMONTH1NC+1) ! ozone field for 2 extra months 
     REAL(KIND=JPRD), ALLOCATABLE     :: ZLON(:), ZLAT(:), ZLV(:) 
     REAL(KIND=JPRB), ALLOCATABLE     :: OZO_CMIP7(:,:,:) ! 3d field of ozone to read from file 
+    INTEGER(KIND=JPIM)               :: JI,JJ
     INTEGER(KIND=JPIM)               :: INCUNIT, ILONVARID, ILATVARID, IPREVARID, IOZOVARID ! ids for netcdf reading
     INTEGER(KIND=JPIM)               :: IMONTH1, ILEV1 ! month and level indices
     INTEGER(KIND=JPIM), DIMENSION(4) :: ISTART,ISIZE ! start index and size of netcdf arrays
     CHARACTER(LEN=*),PARAMETER       :: COZONAME='vmro3' ! name of ozone variable in netcdf files
 
     ! open netcdf file and read coordinates
-    CALL CHECK( NF_OPEN(CC,NF_NOWRITE,INCUNIT) )
+    CALL CHECK( NF90_OPEN(CC,NF_NOWRITE,INCUNIT) )
     
-    CALL CHECK( NF_INQ_VARID(INCUNIT, "lon", ILONVARID) )
-    CALL CHECK( NF_INQ_VARID(INCUNIT, "lat", ILATVARID) )
-    CALL CHECK( NF_INQ_VARID(INCUNIT, "plev", IPREVARID) )
+    CALL CHECK( NF90_INQ_VARID(INCUNIT, "lon", ILONVARID) )
+    CALL CHECK( NF90_INQ_VARID(INCUNIT, "lat", ILATVARID) )
+    CALL CHECK( NF90_INQ_VARID(INCUNIT, "plev", IPREVARID) )
     
     ALLOCATE( ZLON(NLON1NC), ZLAT(NLAT1NC), ZLV(NLV1NC) )
 
     ! read lon, lat, plev
-    ! These are DOUBLE in the data, so always read double precision
-    CALL CHECK( NF_GET_VARA_DOUBLE(INCUNIT, ILONVARID, (/1/), (/NLON1NC/), ZLON) )
-    CALL CHECK( NF_GET_VARA_DOUBLE(INCUNIT, ILATVARID, (/1/), (/NLAT1NC/), ZLAT) )
-    CALL CHECK( NF_GET_VARA_DOUBLE(INCUNIT, IPREVARID, (/1/), (/NLV1NC/),  ZLV) )
-     
-    !WRITE(NULOUT, *) "SUECOZV: ZLON = ",ZLON
-    !WRITE(NULOUT, *) "SUECOZV: ZLAT = ",ZLAT
-    !WRITE(NULOUT, *) "SUECOZV: ZLV  = ",ZLV
+    ! Joakim: I had some problems reading this in SP
+    ! The lon, lat etc are DP in the forcing files. NF_GET_VARA_REAL should simply 
+    ! cast these into SP, but I got very strange values (e+300 etc) 
+    ! So we read in DP here. ZLON, ZLAT, ZLV are DP
+    ! They are later copied into SP arrays e.g. YDECMIP%RLONCLI which seems ok
+    CALL CHECK( NF90_GET_VAR(INCUNIT, ILONVARID, ZLON, start=(/1/), count=(/NLON1NC/)) )
+    CALL CHECK( NF90_GET_VAR(INCUNIT, ILATVARID, ZLAT, start=(/1/), count=(/NLAT1NC/)) )
+    CALL CHECK( NF90_GET_VAR(INCUNIT, IPREVARID, ZLV , start=(/1/), count=(/NLV1NC /)) )
 
     !
     ! read ozone for this year as well as Dec of year-1 and Jan of year+1
@@ -739,7 +698,7 @@ SUBROUTINE READ_NC_FILE_OZONE_CMIP7(CC,NLON1NC,NLAT1NC,NLV1NC,IYR1NC,IYEAR1NC,IY
     ISIZE  = (/ NLON1NC, NLAT1NC, NLV1NC, 1 /)
   
     ! READ 3-D FIELD 
-    CALL CHECK( NF_INQ_VARID(INCUNIT, COZONAME, IOZOVARID) )
+    CALL CHECK( NF90_INQ_VARID(INCUNIT, COZONAME, IOZOVARID) )
     
     DO IMONTH1 = 1,NMONTH1NC ! loop from 1 to 14
         
@@ -760,22 +719,23 @@ SUBROUTINE READ_NC_FILE_OZONE_CMIP7(CC,NLON1NC,NLAT1NC,NLV1NC,IYR1NC,IYEAR1NC,IY
             
         WRITE(NULOUT,*) "SUECOZV: ISTART ", ISTART
         WRITE(NULOUT,*) "SUECOZV: ISIZE ", ISIZE 
-        
-        IF(JPRB==JPRD)THEN ! if double precision
+        IF(JPRB==JPRD) THEN ! if double precision
             ! Joakim: I am skeptical about this read. 
             ! The vmro3 field in the netCDF file is single precision but here we read into 
             ! double precision. I suppose it just pads with garbage decimals at the end. 
             ! A better solution would be to always read SP and then cast to DP if needed. 
             WRITE(NULOUT,*) "SUECOZV: Read 3D ozone in DP "
-            CALL CHECK( NF_GET_VARA_DOUBLE(INCUNIT, IOZOVARID, ISTART, ISIZE, OZO_CMIP7(:,:,:)) )
+            CALL CHECK( NF90_GET_VAR(INCUNIT, IOZOVARID, OZO_CMIP7(:,:,:), start=ISTART, count=ISIZE) )
         ELSE ! single precision
             WRITE(NULOUT,*) "SUECOZV: Read 3D ozone in SP "
-            CALL CHECK( NF_GET_VARA_REAL  (INCUNIT, IOZOVARID, ISTART, ISIZE, OZO_CMIP7(:,:,:)) )
+            CALL CHECK( NF90_GET_VAR(INCUNIT, IOZOVARID, OZO_CMIP7(:,:,:), start=ISTART, count=ISIZE) )
         ENDIF
-        
         ! Reverse vertical levels, convert from mole/mole to ppm and store in ZOZCL
         ! Put first month on index 0 of ZOZCL so that second month (Jan of YEAR) is index 1
         DO ILEV1= 1,NLV1NC
+            ! A warning here: OZO_CMIP7 can easily be 1e-7 and smaller 
+            ! Here we multiply by 1e+6 so there is some danger with precision in SP 
+            ! Seems ok for now.  
             ZOZCL(:,:,ILEV1,IMONTH1-1) = OZO_CMIP7(:,:,NLV1NC-ILEV1+1)*1.E+06_JPRB
         ENDDO
           
@@ -804,7 +764,7 @@ SUBROUTINE READ_NC_FILE_OZONE_CMIP7(CC,NLON1NC,NLAT1NC,NLV1NC,IYR1NC,IYEAR1NC,IY
     WRITE(NULOUT, *) "SUECOZV: RPROC1  = ",YDECMIP%RPROC1(:) 
 
     ! CLOSE NETCDF FILE
-    CALL CHECK( NF_CLOSE(INCUNIT) )
+    CALL CHECK( NF90_CLOSE(INCUNIT) )
 
     DEALLOCATE(ZLON, ZLAT, ZLV, OZO_CMIP7)
 
@@ -812,8 +772,8 @@ END SUBROUTINE READ_NC_FILE_OZONE_CMIP7
 
 SUBROUTINE CHECK(STATUS)
   INTEGER(KIND=JPIM), INTENT (IN) :: STATUS
-  IF(STATUS /= NF_NOERR) THEN
-     CALL ABOR1('SUECOZV:  '//TRIM(NF_STRERROR(STATUS)))
+  IF(STATUS /= NF90_NOERR) THEN
+     CALL ABOR1('SUECOZV:  '//TRIM(NF90_STRERROR(STATUS)))
   ENDIF
 END SUBROUTINE CHECK
 

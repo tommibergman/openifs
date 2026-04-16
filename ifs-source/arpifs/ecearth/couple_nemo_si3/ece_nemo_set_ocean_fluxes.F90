@@ -31,8 +31,7 @@ SUBROUTINE ECE_NEMO_SET_OCEAN_FLUXES(YDSURF, KDIM, SURFL, PSURF, FLUX)
     REAL(KIND=JPRB)    :: ZTS2(KDIM%KLON)
     REAL(KIND=JPRB)    :: ZTS3(KDIM%KLON)
     REAL(KIND=JPRB)    :: ZU10(KDIM%KLON)
-    REAL(KIND=JPRB)    :: ZCALV(KDIM%KLON)
-    REAL(KIND=JPRB)    :: ZSNTEND_FACTOR(KDIM%KLON)
+    REAL(KIND=JPRB)    :: ZEXSNOW(KDIM%KLON) 
     INTEGER(KIND=JPIM) :: ILEV
 
 
@@ -113,32 +112,23 @@ SUBROUTINE ECE_NEMO_SET_OCEAN_FLUXES(YDSURF, KDIM, SURFL, PSURF, FLUX)
     ! =========================================================================
     ! *** Mass fluxes (runoff, precipitation, evaporation)
     ! =========================================================================
+    
+    ! initialise to zero
+    ZEXSNOW(:) = 0._JPRB 
 
     CPLNG2_FLD(CPLNG2_IDX('A_Runoff'))%D(IG:IG+IE,1,1) = &
     &                             FLUX%PFWRO1(IL:IL+IE) + FLUX%PFWROD(IL:IL+IE)
 
-    ! remove excess snow and send it into the ocean as ice ("calving")
-    ! the threshold 10000 kg/m2 is defined in surf/module/surftstp_ctl_mod.F90
-    ! transform excess snow to a mass flux, add to calving and adjust multi-layer snow tendencies 
-    ZCALV(IL:IL+IE) = MAX(0., & ! ensure flux larger than 0 
-                          SUM(PSURF%PSP_SG(IL:IL+IE, 1:KDIM%KLEVSN, YSP_SG%YF%MP9), DIM=2) + &  ! Snow water mass [kg/m**2]
-                          SUM(PSURF%PSNSE1(IL:IL+IE, 1:KDIM%KLEVSN)               , DIM=2) * TSPHY - & ! Snow mass tendency [kg/sm**2]  
-                          10000.0_JPRB ) / &  ! perennial snow height [kg/m**2]
-                          TSPHY ! time step [s]
-
-    ! Send calving flux to coupler
-    CPLNG2_FLD(CPLNG2_IDX('A_Calving'))%D(IG:IG+IE,1,1) = ZCALV(IL:IL+IE)
-
-    ! remove the same amount from the snow tendency to maintain the mass balance
-    ! distribute proportionally over all snow layers
-    WHERE (ZCALV(IL:IL+IE)>0._JPRB)
-        ZSNTEND_FACTOR(IL:IL+IE) = 1._JPRB-ZCALV(IL:IL+IE)/SUM(PSURF%PSNSE1(IL:IL+IE,1:KDIM%KLEVSN),DIM=2)
-    ELSEWHERE
-        ZSNTEND_FACTOR(IL:IL+IE) = 1._JPRB
-    ENDWHERE
-    DO ILEV=1,KDIM%KLEVSN
-        PSURF%PSNSE1(IL:IL+IE,ILEV) = PSURF%PSNSE1(IL:IL+IE,ILEV) * ZSNTEND_FACTOR(IL:IL+IE)
-    ENDDO
+    ! From FESOM 
+    ZEXSNOW(IL:IL+IE) = MAX(SUM(PSURF%PSP_SG(IL:IL+IE,1:KDIM%KLEVSN,YSP_SG%YF%MP9),DIM=2)+&  ! Snow water mass [kg/m**2]
+       SUM(PSURF%PSNSE1(IL:IL+IE,1:KDIM%KLEVSN),DIM=2)*TSPHY-10000.0_JPRB,0.)                ! Snow mass tendency [kg/sm**2] - perannial snow hight [kg/m**2]
+    
+    ! Note: Remove excess snow from top layer only! 
+    PSURF%PSNSE1(IL:IL+IE,1) = PSURF%PSNSE1(IL:IL+IE,1)-&
+                             ZEXSNOW(IL:IL+IE)/TSPHY
+    
+    CPLNG2_FLD(CPLNG2_IDX('A_Calving'))%D(IG:IG+IE,1,1) = &
+       (ZEXSNOW(IL:IL+IE)/TSPHY)
 
     CPLNG2_FLD(CPLNG2_IDX('A_Precip_liquid'))%D(IG:IG+IE,1,1) = &
     &         FLUX%PFPLCL(IL:IL+IE,KDIM%KLEV) + FLUX%PFPLSL(IL:IL+IE,KDIM%KLEV)

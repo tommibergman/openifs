@@ -131,7 +131,15 @@ SUBROUTINE ECE_UPDCLIE_CPL(YDGEOMETRY, YDSURF, YDMCC, YDDYNA, YDRIP, PTSTEP)
             SD_VF(JROF,YSD_VF%YCI%MP,IBL) = ZCI
             IF (LNEMOLIMTEMP) THEN
               IF (ECE_CPL_NEMO_WEIGHTED_ICE) THEN
-                SP_SB(JROF,1,YSP_SB%YTL%MP,IBL) = MIN(ZPRTMELTSICE,CPL_FLD_ICE_TEMP(JSTGLO+JROF-1)/ZCI)
+                ! ensure ice fraction is above zero in JPRB precision
+                ! Otherwise we could get strange numbers here and trigger unexpected behaviour
+                IF (ZCI > EPSILON(1._JPRB)) THEN
+                  SP_SB(JROF,1,YSP_SB%YTL%MP,IBL) = MIN(ZPRTMELTSICE,CPL_FLD_ICE_TEMP(JSTGLO+JROF-1)/ZCI)
+                ELSE
+                  ! If ZCI is too small, set ice temperature to melting point
+                  ! Note this is ice fraction far below 0.01, so it should not have a big impact 
+                  SP_SB(JROF,1,YSP_SB%YTL%MP,IBL) = ZPRTMELTSICE 
+                ENDIF
               ELSE
                 SP_SB(JROF,1,YSP_SB%YTL%MP,IBL) = CPL_FLD_ICE_TEMP(JSTGLO+JROF-1)
               ENDIF
