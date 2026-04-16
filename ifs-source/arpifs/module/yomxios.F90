@@ -35,7 +35,10 @@ TYPE(xios_duration) :: duration_from_origin
 
 ! Axes definition
 CHARACTER(LEN=12), PARAMETER :: model_axis_name="model_levels"
-CHARACTER(LEN=15), PARAMETER :: pressure_axis_name="pressure_levels"
+! Note: Define 39 pressure levels (CMIP6 and CMIP7) 
+! Output on plev19, plev7c etc are subsets of this axis and 
+! can be extracted or interpolated by XIOS (v3.0.3 and later)
+CHARACTER(LEN=15), PARAMETER :: pressure_axis_name="plev39"
 CHARACTER(LEN=12), PARAMETER :: theta_axis_name="theta_levels"
 CHARACTER(LEN=9),  PARAMETER :: pv_axis_name="pv_levels"
 !CHARACTER(LEN=13), PARAMETER :: height_axis_name="height_levels"

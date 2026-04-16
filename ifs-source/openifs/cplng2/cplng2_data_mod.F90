@@ -306,9 +306,6 @@ CONTAINS
             ! -------------------------------------------------------------------------
             ! * FINALISE OASIS DEFINITION PHASE
             ! -------------------------------------------------------------------------
-#ifdef WITH_XIOS
-            CALL xios_oasis_enddef()
-#endif
             CALL OASIS_ENDDEF(error)
             IF (error /= OASIS_OK) THEN
                 WRITE (err_str, '(I3)') error
