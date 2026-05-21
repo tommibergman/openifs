@@ -266,11 +266,11 @@ CONTAINS
         JYEAR = IYEAR
       END IF
       
-      ! -- GHG data only exists until 2022 
-      ! -- Repeat 2022 if necessary
+      ! -- GHG data only exists until 2100 
+      ! -- Repeat 2100 if necessary
       IF (LCMIP7) THEN
-          JYEAR = MIN(JYEAR,2022)
-          WRITE(NULOUT, *) "ECE_CMIP_GHG: Set JYEAR=MIN(JYEAR,2022)=",JYEAR
+          JYEAR = MIN(JYEAR,2100)
+          WRITE(NULOUT, *) "ECE_CMIP_GHG: Set JYEAR=MIN(JYEAR,2100)=",JYEAR
       END IF
 
       ZTGHG = TGHG(JYEAR)
@@ -296,11 +296,11 @@ CONTAINS
         JYEAR = IYEAR
       END IF
       
-      ! -- CH4 data ends in 2022
-      ! -- Repeat 2022 if necessary
+      ! -- CH4 data ends in 2100
+      ! -- Repeat 2100 if necessary
       IF (LCMIP7) THEN
-          JYEAR = MIN(JYEAR,2022)
-          WRITE(NULOUT,*) "ECE_CMIP_GHG: Set JYEAR=MIN(JYEAR,2022)=",JYEAR 
+          JYEAR = MIN(JYEAR,2100)
+          WRITE(NULOUT,*) "ECE_CMIP_GHG: Set JYEAR=MIN(JYEAR,2100)=",JYEAR 
       END IF
 
       ZTGHGCH4 = TGHG(JYEAR)
@@ -426,12 +426,15 @@ CONTAINS
     TYPE(GHGFILEINFO) :: TGHG
 
     CHARACTER(LEN=13) :: TIMEPERIOD
+    CHARACTER(LEN=15) :: MIP
+    CHARACTER(LEN=15) :: SOURCE_ID
 
     IF (LCMIP7) THEN
 
-      TGHG%DATADIR = TRIM(CMIP7DATADIR)//'/ghg'
-
       IF (IY < 2023) THEN
+        TGHG%DATADIR = TRIM(CMIP7DATADIR)//'/ghg'
+        MIP = 'CMIP'
+        SOURCE_ID = 'CR-CMIP-1-0-0'
         SELECT CASE (IY)
         CASE (1:999)
           TGHG%IFIRSTYR = 1        ! The first year in the data set
@@ -444,14 +447,48 @@ CONTAINS
           TGHG%ILASTYR = 2022
         END SELECT
         ! yearly or monthly
-        IF (LGHGMONTHLY) THEN
-          WRITE(TIMEPERIOD, '(I4.4,I2.2,"-",I4.4,I2.2)') TGHG%IFIRSTYR,1,TGHG%ILASTYR,12
-        ELSE
-          WRITE(TIMEPERIOD, '(I4.4,"-",I4.4)') TGHG%IFIRSTYR,TGHG%ILASTYR
-        END IF
-        TGHG%FILEID = '_input4MIPs_GHGConcentrations_CMIP_CR-CMIP-1-0-0_gm_'//TRIM(TIMEPERIOD)
-      !FUTURE-TODO ELSE
+        !IF (LGHGMONTHLY) THEN
+        !  WRITE(TIMEPERIOD, '(I4.4,I2.2,"-",I4.4,I2.2)') TGHG%IFIRSTYR,1,TGHG%ILASTYR,12
+        !ELSE
+        !  WRITE(TIMEPERIOD, '(I4.4,"-",I4.4)') TGHG%IFIRSTYR,TGHG%ILASTYR
+        !END IF
+        !TGHG%FILEID = '_input4MIPs_GHGConcentrations_CMIP_CR-CMIP-1-0-0_gm_'//TRIM(TIMEPERIOD)
+      
+      ELSE IF (IY >= 2023 .AND. IY <= 2100) THEN 
+        TGHG%DATADIR = TRIM(CMIP7DATADIR)//'/ghg/ScenarioMIP/'
+        MIP = 'ScenarioMIP'
+        SOURCE_ID = 'CR-'//TRIM(SCENARIONAME)//'-1-1-0'
+        TGHG%IFIRSTYR = 2022
+        TGHG%ILASTYR = 2100
+        
+      ELSE IF (IY > 2100 .AND. IY <= 2300) THEN 
+        ! extended scenarios
+        TGHG%DATADIR = TRIM(CMIP7DATADIR)//'/ghg/ScenarioMIP/'
+        MIP = 'ScenarioMIP'
+        SOURCE_ID = 'CR-'//TRIM(SCENARIONAME)//'-ext-1-1-0'
+        SELECT CASE (IY)
+          CASE (2101:2200)
+            TGHG%IFIRSTYR = 2101
+            TGHG%ILASTYR = 2200
+          CASE (2201:2300)
+            TGHG%IFIRSTYR = 2201
+            TGHG%ILASTYR = 2300
+          CASE (2301:2400)
+            TGHG%IFIRSTYR = 2301
+            TGHG%ILASTYR = 2400
+          CASE (2401:2500)
+            TGHG%IFIRSTYR = 2401
+            TGHG%ILASTYR = 2500
+        END SELECT 
       ENDIF
+
+      ! yearly or monthly
+      IF (LGHGMONTHLY) THEN
+        WRITE(TIMEPERIOD, '(I4.4,I2.2,"-",I4.4,I2.2)') TGHG%IFIRSTYR,1,TGHG%ILASTYR,12
+      ELSE
+        WRITE(TIMEPERIOD, '(I4.4,"-",I4.4)') TGHG%IFIRSTYR,TGHG%ILASTYR
+      END IF
+      TGHG%FILEID = '_input4MIPs_GHGConcentrations_'//TRIM(MIP)//'_'//TRIM(SOURCE_ID)//'_gm_'//TRIM(TIMEPERIOD)
 
     ELSEIF (LCMIP6) THEN
 

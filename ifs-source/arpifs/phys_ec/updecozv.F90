@@ -174,9 +174,9 @@ IF (YDECMIP%NO3CMIP == 7) THEN ! CMIP7
         IYR=MAX(IYR,1850)
         WRITE(NULOUT,*) "UPDECOZV: IYR = ",IYR 
     ENDIF
-    IF (IYR > 2022) THEN
-        WRITE(NULOUT,*) "UPDECOZV: IYR > 2022 not supported in CMIP7 (yet). Will repeat 2022 for now..."
-        IYR=MIN(IYR,2022)
+    IF (IYR > 2100) THEN
+        WRITE(NULOUT,*) "UPDECOZV: IYR > 2100 not supported in CMIP7 (yet). Will repeat 2100 for now..."
+        IYR=MIN(IYR,2100)
         WRITE(NULOUT,*) "UPDECOZV: IYR = ",IYR 
     ENDIF
 

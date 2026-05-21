@@ -404,10 +404,10 @@ IF (LWCOU .AND. NFPOS/=2) CALL SUWAM(YDGEOMETRY,YDMODEL%YREWCOU)
 !*         15.   SETTING UP MACv2-SP aerosols
 !
 
-IF (LMACV2SP) THEN
-    WRITE(UNIT = KULOUT, FMT='('' Calling setup for MACv2-SP aerosol optical properties. '')')
-    CALL SP_SETUP
-ENDIF
+!IF (LMACV2SP) THEN
+!    WRITE(UNIT = KULOUT, FMT='('' Calling setup for MACv2-SP aerosol optical properties. '')')
+!    CALL SP_SETUP
+!ENDIF
 WRITE(UNIT=KULOUT,FMT='('' SUPHEC IS OVER '')')
 
 !     ------------------------------------------------------------------

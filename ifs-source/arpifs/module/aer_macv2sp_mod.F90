@@ -23,7 +23,7 @@ MODULE AER_MACv2SP_MOD
   USE PARKIND1           , ONLY : JPIM, JPRB, JPRD
   USE mpi
   USE ECPHYS_AUX_TYPE_MOD, ONLY : AUX_TYPE, KEYS_LOCAL_TYPE
-  USE ECE_CMIP           , ONLY : LCMIP6, LCMIP7, CMIP7DATADIR, CMIP6DATADIR
+  USE ECE_CMIP           , ONLY : LCMIP6, LCMIP7, CMIP7DATADIR, CMIP6DATADIR, SCENARIONAME
   USE YOMLUN             , ONLY : NULOUT
   !  USE RADIATION_AEROSOL,        ONLY : AEROSOL_TYPE
 
@@ -34,8 +34,10 @@ MODULE AER_MACv2SP_MOD
   INTEGER(KIND=JPIM), PARAMETER ::              &
        nplumes   = 9                           ,& !< Number of plumes
        nfeatures = 2                           ,& !< Number of features per plume
-       ntimes    = 52                          ,& !< Number of times resolved per year (52 => weekly resolution)
-       nyears    = 251                            !< Number of years of available forcing
+       ntimes    = 52                             !< Number of times resolved per year (52 => weekly resolution)
+  
+  INTEGER(KIND=JPIM) ::                         &     
+       nyears                                     !< Number of years of available forcing
 
   REAL(KIND=JPRB), PARAMETER    ::              &
        pi      = 2.*ASIN(1.),                   & !< half the unit circle (radians)
@@ -44,6 +46,12 @@ MODULE AER_MACv2SP_MOD
   LOGICAL, SAVE ::                              &
        sp_initialized = .FALSE.                   !< parameter determining whether input needs to be read
 
+  INTEGER, SAVE ::                              &
+       sp_read_year_min = -999,                 & ! min year of file we have read      
+       sp_read_year_max = -999,                 & ! max year of file we have read
+       sp_file_year_min = -999,                 & ! min year of this file
+       sp_file_year_max = -999                    ! max year of this file
+  
   REAL(KIND=JPRB) ::                            &
        is_biomass     (nplumes)                ,& !< if plumes is mainly from biomass
        plume_lat      (nplumes)                ,& !< latitude where plume maximizes
@@ -64,11 +72,14 @@ MODULE AER_MACv2SP_MOD
        time_weight    (nfeatures, nplumes)     ,& !< Time-weights = (nfeatures+1) to account for BB background
        time_weight_bg (nfeatures, nplumes)     ,& !< Time-weights for natural background
        time_weight_ref (nfeatures, nplumes)    ,& !< Time-weights for the reference year
-       year_weight (nyears, nplumes)           ,& !< Yearly weight for plume
        ann_cycle   (nfeatures, ntimes, nplumes)    !< annual cycle for feature
+  
+  REAL(KIND=JPRB), ALLOCATABLE, DIMENSION(:,:) :: & 
+       year_weight                                !< Yearly weight for plume     
 
   PUBLIC sp_aop_profile, sp_setup
 
+#include "abor1.intfb.h" 
 
 CONTAINS
   !
@@ -76,111 +87,156 @@ CONTAINS
   ! SP_SETUP:  This subroutine should be called at initialization to read the netcdf data that describes the simple plume
   ! climatology.  The information needs to be either read by each processor or distributed to processors.
   !
-  SUBROUTINE sp_setup
+  ! Called from UPDTIM each step 
+  !
+  SUBROUTINE sp_setup(IYR1)
     !
     ! ----------
 
-    !USE YOERAD   , ONLY : MAC2SPFIL
-    INTEGER(KIND=JPIM)    :: iret, ncid, DimID, VarID, xdmy, IFIL
+    INTEGER(KIND=JPIM), INTENT(IN) :: IYR1
+    INTEGER(KIND=JPIM)    :: iret, ncid, DimID, VarID, xdmy, IFIL, IYR
 
     CHARACTER (LEN = 300) ::  MAC2SPFN, MAC2SPFIL
+    
+    IYR = IYR1 
+    IF (IYR < 1850) IYR = 1850
+    IF (IYR > 2100) IYR = 2100
+    WRITE(NULOUT,'(A,I6)') "SP_SETUP: IYR = ", IYR
+
     IF (LCMIP7) THEN
-        WRITE(MAC2SPFIL,*) TRIM(CMIP7DATADIR)//'/macv2sp/'//'SPv2.1_1850-2023_CMIP7.nc'
+        ! "historical" ends in 2022 although file goes into 2023
+        IF (IYR < 2023) THEN
+          WRITE(MAC2SPFIL,*) TRIM(CMIP7DATADIR)//'/macv2sp/'//'SPv2.1_1850-2023_CMIP7.nc'
+          sp_file_year_min = 1850
+          sp_file_year_max = 2022 
+        ! scenario from 2023 onward 
+        ELSE IF (IYR >= 2023 .AND. IYR < 2101) THEN
+          WRITE(MAC2SPFIL,*) TRIM(CMIP7DATADIR)//'/macv2sp/'//'Simple_plumes_SPv2.1_CMIP7_'//TRIM(SCENARIONAME)//'_scenario.nc'
+          sp_file_year_min = 2023
+          sp_file_year_max = 2100
+        ELSE 
+          ! this should never happen since we force 1850 <= IYR <= 2100 above
+          WRITE(NULOUT,*) "AER_MACV2SP_MOD: IYR OUT OF RANGE", IYR1, IYR, sp_file_year_min, sp_file_year_max
+          CALL ABOR1('AER_MACV2SP_MOD: IYR OUT OF RANGE!')
+        END IF
     ELSE
         WRITE(MAC2SPFIL,*) TRIM(CMIP6DATADIR)//'/'//'SPv2_1850-2020_r20241218.nc'
     END IF
     !
     ! ---------- 
     !
-    IFIL = LEN_TRIM(MAC2SPFIL)
-    MAC2SPFN = MAC2SPFIL(1:IFIL)
+
+    ! check if IYR > max year in file we read before
+    WRITE(NULOUT,'(A, I6, I6, I6, L2)') "SP_SETUP: IYR, SP_READ_YEAR_MIN, SP_READ_YEAR_MAX, SP_INITIALIZED = ", IYR, sp_read_year_min, sp_read_year_max, sp_initialized
+    IF ( (IYR > sp_read_year_max) .OR. (.not. sp_initialized) ) THEN
+      
+      IFIL = LEN_TRIM(MAC2SPFIL)
+      MAC2SPFN = MAC2SPFIL(1:IFIL)
     
-    WRITE(NULOUT, *) "AER_MACv2SP_MOD: OPENING ",MAC2SPFN 
-    iret = nf90_open(MAC2SPFN, NF90_NOWRITE, ncid)
-    IF (iret /= NF90_NOERR) STOP 'NetCDF File not opened: '//MAC2SPFN 
-    !
-    ! read dimensions and make sure file conforms to expected size
-    !
-    iret = nf90_inq_dimid(ncid, "plume_number"  , DimId)
-    iret = nf90_inquire_dimension(ncid, DimId, len = xdmy)
-    IF (xdmy /= nplumes) STOP 'NetCDF improperly dimensioned-- plume_number'
+      WRITE(NULOUT, *) "AER_MACv2SP_MOD: OPENING ",MAC2SPFN 
+      iret = nf90_open(MAC2SPFN, NF90_NOWRITE, ncid)
+      IF (iret /= NF90_NOERR) STOP 'NetCDF File not opened: '//MAC2SPFN 
+      !
+      ! read dimensions and make sure file conforms to expected size
+      !
+      iret = nf90_inq_dimid(ncid, "plume_number"  , DimId)
+      iret = nf90_inquire_dimension(ncid, DimId, len = xdmy)
+      IF (xdmy /= nplumes) STOP 'NetCDF improperly dimensioned-- plume_number'
 
-    iret = nf90_inq_dimid(ncid, "plume_feature", DimId)
-    iret = nf90_inquire_dimension(ncid, DimId, len = xdmy)
-    IF (xdmy /= nfeatures) STOP 'NetCDF improperly dimensioned-- plume_feature'
+      iret = nf90_inq_dimid(ncid, "plume_feature", DimId)
+      iret = nf90_inquire_dimension(ncid, DimId, len = xdmy)
+      IF (xdmy /= nfeatures) STOP 'NetCDF improperly dimensioned-- plume_feature'
+      
+      iret = nf90_inq_dimid(ncid, "year_fr"   , DimId)
+      iret = nf90_inquire_dimension(ncid, DimID, len = xdmy)
+      IF (xdmy /= ntimes) STOP 'NetCDF improperly dimensioned-- year_fr'
 
-    iret = nf90_inq_dimid(ncid, "year_fr"   , DimId)
-    iret = nf90_inquire_dimension(ncid, DimID, len = xdmy)
-    IF (xdmy /= ntimes) STOP 'NetCDF improperly dimensioned-- year_fr'
+      iret = nf90_inq_dimid(ncid, "years"   , DimId)
+      iret = nf90_inquire_dimension(ncid, DimID, len = nyears)
 
-    iret = nf90_inq_dimid(ncid, "years"   , DimId)
-    iret = nf90_inquire_dimension(ncid, DimID, len = xdmy)
-    IF (xdmy /= nyears) STOP 'NetCDF improperly dimensioned-- years'
-    !
-    ! read variables that define the simple plume climatology
-    !
-    iret = nf90_inq_varid(ncid, "is_biomass", VarId)
-    iret = nf90_get_var(ncid, VarID, is_biomass(:), start=(/1/), count=(/nplumes/))
-    IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading is_biomass'
-    iret = nf90_inq_varid(ncid, "plume_lat", VarId)
-    iret = nf90_get_var(ncid, VarID, plume_lat(:), start=(/1/), count=(/nplumes/))
-    IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading plume_lat'
-    iret = nf90_inq_varid(ncid, "plume_lon", VarId)
-    iret = nf90_get_var(ncid, VarID, plume_lon(:), start=(/1/), count=(/nplumes/))
-    IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading plume_lon'
-    iret = nf90_inq_varid(ncid, "beta_a"   , VarId)
-    iret = nf90_get_var(ncid, VarID, beta_a(:)   , start=(/1/), count=(/nplumes/))
-    IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading beta_a'
-    iret = nf90_inq_varid(ncid, "beta_b"   , VarId)
-    iret = nf90_get_var(ncid, VarID, beta_b(:)   , start=(/1/), count=(/nplumes/))
-    IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading beta_b'
-    iret = nf90_inq_varid(ncid, "aod_spmx" , VarId)
-    iret = nf90_get_var(ncid, VarID, aod_spmx(:)  , start=(/1/), count=(/nplumes/))
-    IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading aod_spmx'
-    iret = nf90_inq_varid(ncid, "aod_fmbg" , VarId)
-    iret = nf90_get_var(ncid, VarID, aod_fmbg(:)  , start=(/1/), count=(/nplumes/))
-    IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading aod_fmbg'
-    iret = nf90_inq_varid(ncid, "ssa550"   , VarId)
-    iret = nf90_get_var(ncid, VarID, ssa550(:)  , start=(/1/), count=(/nplumes/))
-    IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading ssa550'
-    iret = nf90_inq_varid(ncid, "asy550"   , VarId)
-    iret = nf90_get_var(ncid, VarID, asy550(:)  , start=(/1/), count=(/nplumes/))
-    IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading asy550'
-    iret = nf90_inq_varid(ncid, "angstrom" , VarId)
-    iret = nf90_get_var(ncid, VarID, angstrom(:), start=(/1/), count=(/nplumes/))
-    IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading angstrom'
+      ! if we previously read "historical" file and now read scenario
+      ! then year_weight size wont match
+      ! Deallocate and allocate again
+      IF ( ALLOCATED(year_weight) ) THEN
+        DEALLOCATE( year_weight )
+      END IF
+      ALLOCATE( year_weight(nyears, nplumes) )
+      !IF (xdmy /= nyears) STOP 'NetCDF improperly dimensioned-- years'
+      
+      !
+      ! read variables that define the simple plume climatology
+      !
+      iret = nf90_inq_varid(ncid, "is_biomass", VarId)
+      iret = nf90_get_var(ncid, VarID, is_biomass(:), start=(/1/), count=(/nplumes/))
+      IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading is_biomass'
+      iret = nf90_inq_varid(ncid, "plume_lat", VarId)
+      iret = nf90_get_var(ncid, VarID, plume_lat(:), start=(/1/), count=(/nplumes/))
+      IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading plume_lat'
+      iret = nf90_inq_varid(ncid, "plume_lon", VarId)
+      iret = nf90_get_var(ncid, VarID, plume_lon(:), start=(/1/), count=(/nplumes/))
+      IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading plume_lon'
+      iret = nf90_inq_varid(ncid, "beta_a"   , VarId)
+      iret = nf90_get_var(ncid, VarID, beta_a(:)   , start=(/1/), count=(/nplumes/))
+      IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading beta_a'
+      iret = nf90_inq_varid(ncid, "beta_b"   , VarId)
+      iret = nf90_get_var(ncid, VarID, beta_b(:)   , start=(/1/), count=(/nplumes/))
+      IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading beta_b'
+      iret = nf90_inq_varid(ncid, "aod_spmx" , VarId)
+      iret = nf90_get_var(ncid, VarID, aod_spmx(:)  , start=(/1/), count=(/nplumes/))
+      IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading aod_spmx'
+      iret = nf90_inq_varid(ncid, "aod_fmbg" , VarId)
+      iret = nf90_get_var(ncid, VarID, aod_fmbg(:)  , start=(/1/), count=(/nplumes/))
+      IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading aod_fmbg'
+      iret = nf90_inq_varid(ncid, "ssa550"   , VarId)
+      iret = nf90_get_var(ncid, VarID, ssa550(:)  , start=(/1/), count=(/nplumes/))
+      IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading ssa550'
+      iret = nf90_inq_varid(ncid, "asy550"   , VarId)
+      iret = nf90_get_var(ncid, VarID, asy550(:)  , start=(/1/), count=(/nplumes/))
+      IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading asy550'
+      iret = nf90_inq_varid(ncid, "angstrom" , VarId)
+      iret = nf90_get_var(ncid, VarID, angstrom(:), start=(/1/), count=(/nplumes/))
+      IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading angstrom'
+      
+      iret = nf90_inq_varid(ncid, "sig_lat_W"     , VarId)
+      iret = nf90_get_var(ncid, VarID, sig_lat_W(:,:)    , start=(/1, 1/), count=(/nfeatures, nplumes/))
+      IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading sig_lat_W'
+      iret = nf90_inq_varid(ncid, "sig_lat_E"     , VarId)
+      iret = nf90_get_var(ncid, VarID, sig_lat_E(:,:)    , start=(/1, 1/), count=(/nfeatures, nplumes/))
+      IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading sig_lat_E'
+      iret = nf90_inq_varid(ncid, "sig_lon_E"     , VarId)
+      iret = nf90_get_var(ncid, VarID, sig_lon_E(:,:)    , start=(/1, 1/), count=(/nfeatures, nplumes/))
+      IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading sig_lon_E'
+      iret = nf90_inq_varid(ncid, "sig_lon_W"     , VarId)
+      iret = nf90_get_var(ncid, VarID, sig_lon_W(:,:)    , start=(/1, 1/), count=(/nfeatures, nplumes/))
+      IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading sig_lon_W'
+      iret = nf90_inq_varid(ncid, "theta"         , VarId)
+      iret = nf90_get_var(ncid, VarID, theta(:,:)        , start=(/1, 1/), count=(/nfeatures, nplumes/))
+      IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading theta'
+      iret = nf90_inq_varid(ncid, "ftr_weight"    , VarId)
+      iret = nf90_get_var(ncid, VarID, ftr_weight(:,:)   , start=(/1, 1/), count=(/nfeatures, nplumes/))
+      IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading plume_lat'
+      iret = nf90_inq_varid(ncid, "year_weight"   , VarId)
+      iret = nf90_get_var(ncid, VarID, year_weight(:,:)  , start=(/1, 1/), count=(/nyears, nplumes   /))
+      IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading year_weight'
+      iret = nf90_inq_varid(ncid, "ann_cycle"     , VarId)
+      iret = nf90_get_var(ncid, VarID, ann_cycle(:,:,:)  , start=(/1, 1, 1/), count=(/nfeatures, ntimes, nplumes/))
+      IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading ann_cycle'
 
-    iret = nf90_inq_varid(ncid, "sig_lat_W"     , VarId)
-    iret = nf90_get_var(ncid, VarID, sig_lat_W(:,:)    , start=(/1, 1/), count=(/nfeatures, nplumes/))
-    IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading sig_lat_W'
-    iret = nf90_inq_varid(ncid, "sig_lat_E"     , VarId)
-    iret = nf90_get_var(ncid, VarID, sig_lat_E(:,:)    , start=(/1, 1/), count=(/nfeatures, nplumes/))
-    IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading sig_lat_E'
-    iret = nf90_inq_varid(ncid, "sig_lon_E"     , VarId)
-    iret = nf90_get_var(ncid, VarID, sig_lon_E(:,:)    , start=(/1, 1/), count=(/nfeatures, nplumes/))
-    IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading sig_lon_E'
-    iret = nf90_inq_varid(ncid, "sig_lon_W"     , VarId)
-    iret = nf90_get_var(ncid, VarID, sig_lon_W(:,:)    , start=(/1, 1/), count=(/nfeatures, nplumes/))
-    IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading sig_lon_W'
-    iret = nf90_inq_varid(ncid, "theta"         , VarId)
-    iret = nf90_get_var(ncid, VarID, theta(:,:)        , start=(/1, 1/), count=(/nfeatures, nplumes/))
-    IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading theta'
-    iret = nf90_inq_varid(ncid, "ftr_weight"    , VarId)
-    iret = nf90_get_var(ncid, VarID, ftr_weight(:,:)   , start=(/1, 1/), count=(/nfeatures, nplumes/))
-    IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading plume_lat'
-    iret = nf90_inq_varid(ncid, "year_weight"   , VarId)
-    iret = nf90_get_var(ncid, VarID, year_weight(:,:)  , start=(/1, 1/), count=(/nyears, nplumes   /))
-    IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading year_weight'
-    iret = nf90_inq_varid(ncid, "ann_cycle"     , VarId)
-    iret = nf90_get_var(ncid, VarID, ann_cycle(:,:,:)  , start=(/1, 1, 1/), count=(/nfeatures, ntimes, nplumes/))
-    IF (iret /= NF90_NOERR) STOP 'NetCDF Error reading ann_cycle'
+      iret = nf90_close(ncid)
 
-    iret = nf90_close(ncid)
+      sp_read_year_min = sp_file_year_min
+      sp_read_year_max = sp_file_year_max
+      WRITE(NULOUT,*) "SP_SETUP: Set sp_read_year_min = ", sp_read_year_min
+      WRITE(NULOUT,*) "SP_SETUP: Set sp_read_year_max = ", sp_read_year_max
 
-    sp_initialized = .TRUE.
+      sp_initialized = .TRUE.
+     
+    END IF
+
+    
     RETURN
   END SUBROUTINE sp_setup
-
+  
   !
   ! ------------------------------------------------------------------------------------------------------------------------
   ! SET_TIME_WEIGHT:  The simple plume model assumes that meteorology constrains plume shape and that only source strength
@@ -188,12 +244,14 @@ CONTAINS
   ! for the plumes.  Each plume feature has its own temporal weights which varies yearly.  The annual cycle is indexed by
   ! week in the year and superimposed on the yearly mean value of the weight.
   !
-  SUBROUTINE set_time_weight(year_fr)
+  SUBROUTINE set_time_weight(year_fr, iyear0)
     !
     ! ----------
     !
     REAL(KIND=JPRB), INTENT(IN) ::  &
          year_fr           !< Fractional Year (1850.0-2100.99)
+    INTEGER(KIND=JPIM), INTENT(IN) :: &
+         iyear0            !< Start year of file
 
     INTEGER(KIND=JPIM) ::  &
          idate(8)         ,& !< integer array of system clock date yyyy, mm, dd
@@ -212,7 +270,7 @@ CONTAINS
     !
     ! ----------
     !
-    iyear = FLOOR(year_fr) - 1850+1
+    iyear = FLOOR(year_fr) - iyear0+1
     iweek = FLOOR((year_fr-FLOOR(year_fr)) * ntimes) + 1
 
     IF ((iweek > ntimes) .OR. (iweek < 1) .OR. (iyear > nyears) .OR. (iyear < 1)) STOP 'Time out of bounds in set_time_weight'
@@ -321,11 +379,22 @@ CONTAINS
     ! initialize input data (by calling setup at first instance)
     !
 
-    IF (.NOT.sp_initialized) CALL sp_setup
+    IF (.NOT. sp_initialized) THEN
+      ! This should never happen since SP_SETUP is called in UPDTIM
+      CALL ABOR1('AER_MACV2SP_MOD: SP NOT INITIALIZED!')
+      !CALL sp_setup(YEAR_FR)
+    END IF
     !
     ! get time weights
     !
-    CALL set_time_weight(YEAR_FR)
+    IF (YEAR_FR < 2023._JPRB) THEN 
+      CALL set_time_weight(YEAR_FR, 1850)
+    ELSE IF (YEAR_FR >= 2023._JPRB .AND. YEAR_FR < 2101) THEN
+      ! use ScenarioMIP 
+      CALL set_time_weight(YEAR_FR, 2023)
+    ELSE 
+      CALL ABOR1('AER_MACV2SP_MOD:  TIME OUT OF RANGE!')
+    END IF
     !
     ! Compute z from model geopotential height
     !PGEOH (JL, KLEV+1)=POROG(JL) 

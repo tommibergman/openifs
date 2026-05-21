@@ -90,8 +90,8 @@ INTEGER(KIND=JPIM) :: I, IUNIT, IDIR, IFIL
 LOGICAL            :: LLIS_OPEN
 CHARACTER(LEN=132) :: CLSKIP_LINE
 
-CHARACTER (LEN = 300) ::  CLFN       ! full file name (dir + file)
-CHARACTER (LEN = 80)  ::  ZO3DATAFIL ! temporary string for file name
+CHARACTER (LEN = 400) ::  CLFN       ! full file name (dir + file)
+CHARACTER (LEN = 150) ::  ZO3DATAFIL ! temporary string for file name
 
 
 CHARACTER (LEN = 10)  ::  CO3SCEN  ! scenario name 
@@ -132,11 +132,6 @@ IF (YDECMIP%NO3CMIP == 7) THEN ! CMIP7
   IF (IYR < 1850) THEN
       WRITE(NULOUT,*) "SUECOZV: For year < 1850 we set year = 1850" 
       IYR=1850
-  ENDIF
-
-  IF (IYR > 2022) THEN
-      WRITE(NULOUT,*) "SUECOZV: For year > 2022 we set year = 2022" 
-      IYR=2022
   ENDIF
 
   NLON1 = NLON1_CMIP7
@@ -235,7 +230,7 @@ IF (YDECMIP%NO3CMIP == 7) THEN ! read CMIP7 ozone data
       ENDIF
       WRITE(NULOUT,*) "SUECOZV: Reading year ",IYRR
       ALLOCATE(ZOZO_DATA(NLON1, NLAT1, NLV1, 0:NMONTH1-1))
-      CALL FIND_NC_FILE_OZONE_CMIP7(IYRR, IYEAR1, IYEAR2, ZO3DATAFIL, LFIRSTYEAR, LLASTYEAR)
+      CALL FIND_NC_FILE_OZONE_CMIP7(IYRR, IYEAR1, IYEAR2, ZO3DATAFIL, LFIRSTYEAR, LLASTYEAR, CCMIP7_SCEN=SCENARIONAME)
       IFIL=LEN_TRIM(ZO3DATAFIL) 
       CLFN=YDECMIP%CO3DATADIR(1:IDIR)//'/'//ZO3DATAFIL(1:IFIL)  
       CALL READ_NC_FILE_OZONE_CMIP7(CLFN, NLON1, NLAT1, NLV1, IYRR, IYEAR1, IYEAR2, NMONTH1, ZOZO_DATA)
@@ -246,15 +241,15 @@ IF (YDECMIP%NO3CMIP == 7) THEN ! read CMIP7 ozone data
   ! If we are reading the last year of the file, we also need the first month 
   ! of the next file
   ELSE IF (LLASTYEAR) THEN
-      ! if year = 2022, then there is no more data
-      ! We will simply repeat 2022 again. 
-      ! When scenarios become available we can read that instead
-      IF (IYR == 2022) THEN
+      ! if year = 2100, then there is no more data
+      ! We will simply repeat 2100 again. 
+      ! When extended scenarios become available we can read that instead
+      IF (IYR == 2100) THEN
           WRITE(NULOUT,*) "SUECOZV: Last year of data. Not reading next year." 
       ELSE    
           WRITE(NULOUT,*) "SUECOZV: Reading next year ",IYR+1 
           ALLOCATE(ZOZO_DATA(NLON1, NLAT1, NLV1, 0:NMONTH1-1))
-          CALL FIND_NC_FILE_OZONE_CMIP7(IYR+1, IYEAR1, IYEAR2, ZO3DATAFIL, LFIRSTYEAR, LLASTYEAR)
+          CALL FIND_NC_FILE_OZONE_CMIP7(IYR+1, IYEAR1, IYEAR2, ZO3DATAFIL, LFIRSTYEAR, LLASTYEAR, CCMIP7_SCEN=SCENARIONAME)
           IFIL=LEN_TRIM(ZO3DATAFIL)
           CLFN=YDECMIP%CO3DATADIR(1:IDIR)//'/'//ZO3DATAFIL(1:IFIL)
           CALL READ_NC_FILE_OZONE_CMIP7(CLFN, NLON1, NLAT1, NLV1, IYR+1, IYEAR1, IYEAR2, NMONTH1, ZOZO_DATA)
@@ -557,7 +552,7 @@ SUBROUTINE FIND_NC_FILE_OZONE_CMIP7(IYR1, IYEAR1F, IYEAR2F, CC, LFIRSTYR, LLASTY
     INTEGER(KIND=JPIM),           INTENT(IN)   :: IYR1              ! year
     CHARACTER(LEN=*), OPTIONAL,   INTENT(IN)   :: CCMIP7_SCEN       ! scenario
     INTEGER(KIND=JPIM),           INTENT(OUT)  :: IYEAR1F, IYEAR2F  ! first and last year of file
-    CHARACTER(LEN=80),            INTENT(OUT)  :: CC                ! file name
+    CHARACTER(LEN=150),           INTENT(OUT)  :: CC                ! file name
     LOGICAL,                      INTENT(OUT)  :: LFIRSTYR, LLASTYR ! is it first or last year of file?
 
     ! use pre-computed 1850 mean climatology for piControl (v1.2)
@@ -570,6 +565,11 @@ SUBROUTINE FIND_NC_FILE_OZONE_CMIP7(IYR1, IYEAR1F, IYEAR2F, CC, LFIRSTYR, LLASTY
         WRITE(NULOUT,*) "SUECOZV: CC = ",TRIM(CC)
         RETURN
     ENDIF
+
+    IF ( IYR1 >= 2100 .AND. .NOT. PRESENT(CCMIP7_SCEN) ) THEN
+      WRITE(NULOUT,*) "SUECOZV: 2023 <= YEAR <= 2100 but no CMIP7 scenario specified "
+      CALL ABOR1("SUECOZV: Can not find ozone file ") 
+    END IF
 
     ! Determine which file to read
     ! CMIP7 ozone v2.0 files cover periods
@@ -590,17 +590,15 @@ SUBROUTINE FIND_NC_FILE_OZONE_CMIP7(IYR1, IYEAR1F, IYEAR2F, CC, LFIRSTYR, LLASTY
         CASE ( 2000:2022 ) ! 2000 <= IYR <= 2022 
             IYEAR1F = 2000
             IYEAR2F = 2022
-        CASE ( 2023:2100 ) ! 2023 <= IYR <= 2100
-            IYEAR1F = 2023
+        CASE ( 2023:2059 ) ! 2023 <= IYR <= 2059
+            IYEAR1F = 2022
+            IYEAR2F = 2059
+        CASE ( 2060:2100 ) ! 2060 <= IYR <= 2100
+            IYEAR1F = 2060
             IYEAR2F = 2100
-            IF ( .NOT. PRESENT(CCMIP7_SCEN) ) THEN
-                WRITE(NULOUT,*) "SUECOZV: 2023 <= YEAR <= 2100 but no CMIP7 scenario specified "
-                CALL ABOR1("SUECOZV: Can not find ozone file ") 
-            END IF 
-        CASE DEFAULT       ! else: not included in historical forcing
-            ! todo: add scenarios as they become available later
+        CASE DEFAULT       ! else: not included in forcing
             WRITE(NULOUT,*) "SUECOZV: Can not find ozone data for year ",IYR1
-            WRITE(NULOUT,*) "SUECOZV: CMIP7 ozone v2.0 only works for years 1850-2022 "  
+            WRITE(NULOUT,*) "SUECOZV: CMIP7 ozone v2.0 only works for years 1850-2100 "  
             CALL ABOR1("SUECOZV: No CMIP7 ozone data found ")
     END SELECT
     
@@ -613,25 +611,42 @@ SUBROUTINE FIND_NC_FILE_OZONE_CMIP7(IYR1, IYEAR1F, IYEAR2F, CC, LFIRSTYR, LLASTY
     IF ( IYR1 == 1899 .OR. &
        & IYR1 == 1949 .OR. &
        & IYR1 == 1999 .OR. &
-       & IYR1 == 2022 ) THEN
+       & IYR1 == 2022 .OR. & 
+       & IYR1 == 2059 .OR. & 
+       & IYR1 == 2100 ) THEN
 
         LLASTYR = .TRUE.
     
     ELSE IF ( IYR1 == 1850 .OR. &
             & IYR1 == 1900 .OR. & 
             & IYR1 == 1950 .OR. & 
-            & IYR1 == 2000 ) THEN
+            & IYR1 == 2000 .OR. & 
+            & IYR1 == 2023 .OR. & 
+            & IYR1 == 2060 ) THEN
 
         LFIRSTYR = .TRUE.
 
     END IF
     
     WRITE(NULOUT,*) "SUECOZV: IYR1, LFIRSTYR, LLASTYR = ",IYR1,LFIRSTYR,LLASTYR 
+    WRITE(NULOUT,*) "SUECOZV: CCMIP7_SCEN = ",TRIM(CCMIP7_SCEN)
+    CALL FLUSH(NULOUT)
 
-    ! set file name for historical ozone 
-    ! if year1 = 1850 and year2 = 1899 we need to write 185001 and 189912 
-    WRITE(CC,'(''ozone/vmro3_input4MIPs_ozone_CMIP_FZJ-CMIP-ozone-2-0_gn_'',I6.6,''-'',I6.6,''.nc'')') &
-            & IYEAR1F*100+1, IYEAR2F*100+12
+    ! Put together file name
+    SELECT CASE (IYR1) 
+      ! historical
+      CASE ( 1850:2022 )
+        ! set file name for historical ozone 
+        ! if year1 = 1850 and year2 = 1899 we need to write 185001 and 189912 
+        WRITE(CC,'(''ozone/vmro3_input4MIPs_ozone_CMIP_FZJ-CMIP-ozone-2-0_gn_'',I6.6,''-'',I6.6,''.nc'')') &
+              & IYEAR1F*100+1, IYEAR2F*100+12
+      ! scenario
+      CASE ( 2023:2100 )
+        !                               vmro3_input4MIPs_ozone_ScenarioMIP_FZJ-CMIP-ozone-h-1-0_gn_202201-205912.nc
+        WRITE(CC,'(''ozone/ScenarioMIP/vmro3_input4MIPs_ozone_ScenarioMIP_FZJ-CMIP-ozone-'',A,''-1-0_gn_'',I6.6,''-'',I6.6,''.nc'')') &
+              & TRIM(CCMIP7_SCEN), IYEAR1F*100+1, IYEAR2F*100+12
+    END SELECT 
+    
     WRITE(NULOUT,*) "SUECOZV: CC = ",TRIM(CC)
 
 END SUBROUTINE FIND_NC_FILE_OZONE_CMIP7
