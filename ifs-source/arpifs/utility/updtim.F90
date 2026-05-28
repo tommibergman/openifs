@@ -955,6 +955,12 @@ IF(.NOT.LSCMEC) THEN
   ENDIF
 ENDIF ! .NOT. LSCMEC
 
+! EC-Earth, coupled SCM
+IF(LSCMEC.AND.LECEARTH)THEN
+  ! Update climate fields from coupler EC-Earth style
+  CALL ECE_UPDCLIE_CPL(YDGEOMETRY,YDSURF,YDMCC,YDDYNA,YDRIP,PTSTEP)
+ENDIF
+
 IF(ISTASS < ITIME)THEN
   
 !        Updates daily emissions

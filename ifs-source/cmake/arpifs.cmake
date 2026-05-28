@@ -170,6 +170,10 @@ if ( ENABLE_CPLNG2 )
     arpifs.${PREC}
     PRIVATE ${OASIS_INCLUDE_DIRECTORIES}
   )
+  target_link_libraries(
+    arpifs.${PREC}
+    PRIVATE ${OASIS_LIBRARIES} ${XIOS_LIBRARIES}
+  )
 else()
   message("--> Building arpifs without CPLNG2/OASIS support")
   target_sources(
@@ -202,27 +206,29 @@ if(CMAKE_Fortran_COMPILER_ID MATCHES "Cray" AND CMAKE_GENERATOR STREQUAL "Ninja"
     COMMENT "Patching CMakeFiles/arpifs.${PREC}.rsp")
 endif()
 
-ecbuild_add_executable( TARGET ifsMASTER.${PREC}
-  DEFINITIONS ${IFS_DEFINITIONS}
-  SOURCES arpifs/programs/master.F90
-  INCLUDES ${FCKIT_INCLUDE_DIRS}
-  LIBS arpifs.${PREC} wam.${PREC}
-  LINKER_LANGUAGE Fortran
-  CONDITION HAVE_MPI
- )
+if ( NOT ENABLE_SCMEC ) # Not single column model
+  ecbuild_add_executable( TARGET ifsMASTER.${PREC}
+    DEFINITIONS ${IFS_DEFINITIONS}
+    SOURCES arpifs/programs/master.F90
+    INCLUDES ${FCKIT_INCLUDE_DIRS}
+    LIBS arpifs.${PREC} wam.${PREC}
+    LINKER_LANGUAGE Fortran
+    CONDITION HAVE_MPI
+   )
 
-if ( ENABLE_OIFS_XIOS )
-  target_link_libraries(
-    ifsMASTER.${PREC}
-    PRIVATE ${XIOS_LIBRARIES} ${NETCDF_LIBRARIES} stdc++
-  )
-endif()
+  if ( ENABLE_OIFS_XIOS )
+    target_link_libraries(
+      ifsMASTER.${PREC}
+      PRIVATE ${XIOS_LIBRARIES} ${NETCDF_LIBRARIES} stdc++
+    )
+  endif()
 
-if ( ENABLE_CPLNG2 )
-  target_link_libraries(
-    ifsMASTER.${PREC}
-    PRIVATE ${OASIS_LIBRARIES} ${NETCDF_LIBRARIES}
-  )
+  if ( ENABLE_CPLNG2 )
+    target_link_libraries(
+      ifsMASTER.${PREC}
+      PRIVATE ${OASIS_LIBRARIES} ${NETCDF_LIBRARIES}
+    )
+  endif()  
 endif()
 
 if( NOT HAVE_FORECAST_ONLY )

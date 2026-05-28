@@ -13,6 +13,7 @@ MODULE CPLNG2_DATA_MOD
 
     PUBLIC CPLNG2_FLD_TYPE_GRIDPOINT
     PUBLIC CPLNG2_FLD_TYPE_SPECTRAL
+    PUBLIC CPLNG2_FLD_TYPE_SINGLEPOINT ! for single column coupled model
 
     PUBLIC CPLNG2_FLD_IN
     PUBLIC CPLNG2_FLD_OUT
@@ -25,6 +26,7 @@ MODULE CPLNG2_DATA_MOD
 
     INTEGER(KIND=JPIM), PARAMETER :: CPLNG2_FLD_TYPE_GRIDPOINT = 0
     INTEGER(KIND=JPIM), PARAMETER :: CPLNG2_FLD_TYPE_SPECTRAL = 1
+    INTEGER(KIND=JPIM), PARAMETER :: CPLNG2_FLD_TYPE_SINGLEPOINT = 2
 
     INTEGER, PARAMETER :: CPLNG2_FLD_IN = OASIS_IN
     INTEGER, PARAMETER :: CPLNG2_FLD_OUT = OASIS_OUT
@@ -237,6 +239,27 @@ CONTAINS
                 DEALLOCATE (oas_part_spec)
             END IF ! Field type == spectral
 
+            ! Set up oasis partition for single column coupled model 
+            ! Requires a new coupling field type (SINGLEPOINT) = serial oasis (no partition)
+            IF( ANY(CPLNG2_FLD(:)%TYPE == CPLNG2_FLD_TYPE_SINGLEPOINT) )THEN
+
+                ! For shape and meaning of oas_part_spec, see IG_PARAL(:) in OASIS documentation
+                ALLOCATE (oas_part_spec(3))
+
+                oas_part_spec(1) = 0 ! Value 0 indicates serial (no partition)
+                oas_part_spec(2) = 0
+                oas_part_spec(3) = 1 ! total grid size
+
+                ! Define partition for OASIS
+                CALL OASIS_DEF_PARTITION(oas_part_id_gp, oas_part_spec, error)
+                IF (error /= OASIS_OK) THEN
+                    WRITE (err_str, '(I3)') error
+                    CALL ABOR1("CPLNG2_ADD_FLD_COMPLETED: Error on OASIS_DEF_PARTITION (singlepoint): "//err_str)
+                END IF
+
+                DEALLOCATE (oas_part_spec)
+            END IF ! Field type == singlepoint
+
             ! -------------------------------------------------------------------------
             ! * DEFINE COUPLING FIELDS FOR OASIS
             ! -------------------------------------------------------------------------
@@ -268,6 +291,11 @@ CONTAINS
                     oas_part_id = oas_part_id_sp
                     oas_actual_shape = (/1, NSPEC2/)
                     ALLOCATE (CPLNG2_FLD(i)%d(NSPEC2, CPLNG2_FLD(i)%num_lvl, CPLNG2_FLD(i)%num_cat))
+
+                CASE (CPLNG2_FLD_TYPE_SINGLEPOINT) ! single column coupled model
+                    oas_part_id = oas_part_id_gp
+                    oas_actual_shape = (/1, 1/)
+                    ALLOCATE (CPLNG2_FLD(i)%d(NGPTOT, CPLNG2_FLD(i)%num_lvl, CPLNG2_FLD(i)%num_cat))
 
                 CASE DEFAULT
                     CALL ABOR1("CPLNG2_ADD_FLD_COMPLETED: Wrong field type for "//TRIM(CPLNG2_FLD(i)%name))

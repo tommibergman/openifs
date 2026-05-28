@@ -39,6 +39,19 @@ target_fortran_module_directory(
     TARGET scmec.${PREC}
     MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/module/scmec${PROJECT_PRECISION_SUFFIX} )
 
+# add oasis headers/libs for coupled single column model (EC-Earth style coupling)
+if ( ENABLE_CPLNG2 )
+  message("--> Building scmec with CPLNG2/OASIS support")
+  target_include_directories(
+    scmec.${PREC}
+    PRIVATE ${OASIS_INCLUDE_DIRECTORIES}
+  )
+  target_link_libraries(
+    scmec.${PREC}
+    PRIVATE ${OASIS_LIBRARIES}
+  )
+endif()
+
 # ----------------------------------------------------------------------------
 
 ecbuild_add_executable(TARGET MASTER_scm.${PREC}
@@ -48,8 +61,9 @@ ecbuild_add_executable(TARGET MASTER_scm.${PREC}
     ${CMAKE_Fortran_MODULE_DIRECTORY}
     scmec/namelist
     ${NETCDF_INCLUDE_DIRS}
+    ${OASIS_INCLUDE_DIRECTORIES}
     ${FCKIT_INCLUDE_DIRS}
-  LIBS scmec.${PREC} ${NETCDF_LIBRARIES})
+  LIBS scmec.${PREC} ${NETCDF_LIBRARIES} ${OASIS_LIBRARIES})
 
 ## Restore the default Fortran module directory
 include_directories(${CMAKE_Fortran_MODULE_DIRECTORY})

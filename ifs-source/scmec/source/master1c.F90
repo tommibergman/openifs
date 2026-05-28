@@ -15,6 +15,11 @@ USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 USE OML_MOD   ,ONLY : OML_INIT
 !USE YOMERRTRAP
 
+#ifdef WITH_CPLNG2
+! Single column coupled model (EC-Earth style coupling)
+USE CPLNG2    ,ONLY : CPLNG2_INIT
+#endif
+
 IMPLICIT NONE
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
@@ -35,6 +40,10 @@ IF (LHOOK) CALL DR_HOOK('MASTER1C',0,ZHOOK_HANDLE)
 
 !CALL SET_ERR_TRAP
 
+#ifdef WITH_CPLNG2
+! single column coupled model - initialize oasis coupling
+CALL CPLNG2_INIT
+#endif
 
 !     ------------------------------------------------------------------
 !     Call model.

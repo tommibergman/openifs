@@ -22,6 +22,11 @@ USE INTDYN_MOD,         ONLY : SUINTDYN
 USE SURFACE_FIELDS_MIX, ONLY : ALLO_SURF
 USE VARIABLES_MOD,      ONLY : VARIABLES, VARIABLES_CREATE, VARIABLES_DELETE
 
+#ifdef WITH_CPLNG2
+! single column coupled model (EC-Earth style coupling)
+USE ECEARTH1C,          ONLY : ECE1C_CONFIG
+#endif
+
 #ifdef DOC
 
 !**** *SU0YOM1C*  - INITIALIZE LEVEL 0 COMMONS
@@ -151,6 +156,11 @@ CALL SUCT0(NULOUT)
 
 !*    Setup model geometry
 CALL SUGEOMETRY1C(YDGEOMETRY,YDMODEL%YRML_DYN)
+
+#ifdef WITH_CPLNG2
+! Set up coupling configuration - single column coupled model
+CALL ECE1C_CONFIG(YDGEOMETRY, YDMODEL)
+#endif
 
 !     Initialize MASS VF Option
 CALL SUJFH
